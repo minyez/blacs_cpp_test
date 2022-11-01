@@ -110,6 +110,7 @@ public:
     int nc() const { return nc_; }
     bool is_row_major() const { return major_ == MAJOR::ROW; }
     bool is_col_major() const { return major_ == MAJOR::COL; }
+    const MAJOR& major() const { return major_; }
     int size() const { return size_; }
     void zero_out() { for (int i = 0; i < size(); i++) c[i] = 0.; }
 
@@ -234,22 +235,6 @@ public:
         for (int i = 0; i < size(); i++)
             c[i] = cnum;
         return *this;
-    }
-
-    bool operator==(const matrix<T> &m) const
-    {
-        if (size() == 0 || m.size() == 0) return false;
-        if (nc_ != m.nc_ || nr_ != m.nr_ || major_ != m.major_) return false;
-        for (int i = 0; i < size(); i++)
-            if (fabs(c[i] - m.c[i]) > matrix<T>::EQUAL_THRES) return false;
-        return true;
-    }
-
-    bool operator==(const T &cnum) const
-    {
-        for (int i = 0; i < size(); i++)
-            if (fabs(c[i] - cnum) > matrix<T>::EQUAL_THRES) return false;
-        return true;
     }
 
     void operator+=(const matrix<T> &m)
@@ -432,7 +417,7 @@ template <> inline void matrix<std::complex<double>>::conj()
 }
 
 template <typename T1, typename T2>
-inline bool same_major(const matrix<T1> &m1, matrix<T2> &m2)
+inline bool same_major(const matrix<T1> &m1, const matrix<T2> &m2)
 {
     return m1.major() == m2.major();
 }
@@ -446,7 +431,7 @@ inline bool same_type(const matrix<T1> &m1, matrix<T2> &m2)
 template <typename T1, typename T2>
 void copy(const matrix<T1> &src, matrix<T2> &dest)
 {
-    assert(src.size() == dest.size() || same_major(src, dest));
+    assert(src.size() == dest.size() && same_major(src, dest));
     for (int i = 0; i < src.size(); i++)
         dest.c[i] = src.c[i];
 }
@@ -574,11 +559,54 @@ inline matrix<T> operator*(const T &cnum, const matrix<T> &m)
     return m * cnum;
 }
 
+template <typename T1, typename T2>
+inline bool almost_equal(const matrix<T1> &m1, const matrix<T2> &m2, double thres = DOUBLE_EQUAL_THRES)
+{
+    int size = m1.size();
+    if (size != m2.size() || size == 0) return false;
+    if (m1.nc() != m2.nc() || m1.nr() != m2.nr() || !same_major(m1, m2)) return false;
+    for (int i = 0; i < size; i++)
+        if (fabs(m1.c[i] - m2.c[i]) > thres) return false;
+    return true;
+}
+
+template <typename T1, typename T2>
+inline bool almost_equal(const matrix<T1> &m, const T2 &cnum, double thres = DOUBLE_EQUAL_THRES)
+{
+    for (int i = 0; i < m.size(); i++)
+        if (fabs(m.c[i] - cnum) > thres) return false;
+    return true;
+}
+
+template <typename T1, typename T2>
+inline bool operator==(const matrix<T1> &m1, const matrix<T2> &m2)
+{
+    return almost_equal(m1, m2, DOUBLE_EQUAL_THRES);
+}
+
+template <typename T1, typename T2>
+inline bool operator!=(const matrix<T1> &m1, const matrix<T2> &m2)
+{
+    return !almost_equal(m1, m2, DOUBLE_EQUAL_THRES);
+}
+
+template <typename T1, typename T2>
+inline bool operator==(const matrix<T1> &m, const T2 &cnum)
+{
+    return almost_equal(m, cnum, DOUBLE_EQUAL_THRES);
+}
+
+template <typename T1, typename T2>
+inline bool operator!=(const matrix<T1> &m, const T2 &cnum)
+{
+    return !almost_equal(m, cnum, DOUBLE_EQUAL_THRES);
+}
+
 template <typename T>
 inline matrix<T> inverse(const matrix<T> &m)
 {
     if (m.size() == 0) throw std::invalid_argument("zero size matrix");
-    matrix<T> inv;
+    matrix<T> inv(0, 0, m.major());
     inverse(m, inv);
     return inv;
 }
@@ -800,8 +828,9 @@ matrix<T> get_local_mat(const matrix<T> &mat_go, const ArrayDesc &ad)
 {
     // assert the shape of matrix conforms with the array descriptor
     assert(mat_go.nr() == ad.m() && mat_go.nc() == ad.n());
+    assert(mat_go.is_row_major());
 
-    matrix<T> mat_lo(ad.num_r(), ad.num_c());
+    matrix<T> mat_lo(ad.num_r(), ad.num_c(), matrix<T>::MAJOR::COL);
     for (int i = 0; i != mat_go.nr(); i++)
     {
         auto i_lo = ad.to_loid_r(i);
@@ -822,6 +851,7 @@ void get_local_mat(matrix<T1> &mat_lo, const matrix<T2> &mat_go, const ArrayDesc
     // assert the shape of matrix conforms with the array descriptor
     assert(mat_go.nr() == ad.m() && mat_go.nc() == ad.n());
     assert(mat_lo.nr() == ad.num_r() && mat_lo.nc() == ad.num_c());
+    assert(mat_go.is_row_major() && mat_lo.is_col_major());
 
     for (int i = 0; i != mat_go.nr(); i++)
     {

@@ -30,6 +30,7 @@ int main (int argc, char *argv[])
 
     mat1.random(0, 2);
     mat2.random(-1, 1);
+    assert(mat1 != mat2);
 
     auto prod_direct = mat1 * mat2;
     if (blacs_h.myid == 0)
@@ -50,6 +51,7 @@ int main (int argc, char *argv[])
     auto mat1_local = get_local_mat(mat1, desc_mat1);
     auto mat2_local = get_local_mat(mat2, desc_mat2);
     auto mat3_local = get_local_mat(mat3, desc_mat3);
+    assert(mat1_local.is_col_major() && mat2_local.is_col_major() && mat3_local.is_col_major());
 
     printf("mat1_local of %s\n%s", desc_mat1.info().c_str(), str(mat1_local).c_str());
     printf("mat2_local of %s\n%s", desc_mat2.info().c_str(), str(mat2_local).c_str());
@@ -57,11 +59,19 @@ int main (int argc, char *argv[])
     double alpha = 1.0, beta = 0.0;
     int i1 = 1;
     int desc1[9], desc2[9], desc3[9];
-    linalg::descinit(desc2, n, k, nb, mb, IRSRC, ICSRC, blacs_h.ictxt, mat2_local.nc(), info);
-    linalg::descinit(desc1, k, m, kb, mb, IRSRC, ICSRC, blacs_h.ictxt, mat1_local.nc(), info);
-    linalg::descinit(desc3, n, m, nb, mb, IRSRC, ICSRC, blacs_h.ictxt, mat3_local.nc(), info);
-    pdgemm_(&transn, &transn, &n, &m, &k, &alpha, mat2_local.c, &i1, &i1, desc2,
-            mat1_local.c, &i1, &i1, desc1, &beta, mat3_local.c, &i1, &i1, desc3);
+    // for row-major matrices
+    // linalg::descinit(desc2, n, k, nb, mb, IRSRC, ICSRC, blacs_h.ictxt, mat2_local.nc(), info);
+    // linalg::descinit(desc1, k, m, kb, mb, IRSRC, ICSRC, blacs_h.ictxt, mat1_local.nc(), info);
+    // linalg::descinit(desc3, n, m, nb, mb, IRSRC, ICSRC, blacs_h.ictxt, mat3_local.nc(), info);
+    // pdgemm_(&transn, &transn, &n, &m, &k, &alpha, mat2_local.c, &i1, &i1, desc2,
+    //         mat1_local.c, &i1, &i1, desc1, &beta, mat3_local.c, &i1, &i1, desc3);
+
+    // for col-major matrices
+    linalg::descinit(desc1, m, k, mb, kb, IRSRC, ICSRC, blacs_h.ictxt, mat1_local.nr(), info);
+    linalg::descinit(desc2, k, n, kb, nb, IRSRC, ICSRC, blacs_h.ictxt, mat2_local.nr(), info);
+    linalg::descinit(desc3, m, n, mb, nb, IRSRC, ICSRC, blacs_h.ictxt, mat3_local.nr(), info);
+    pdgemm_(&transn, &transn, &m, &n, &k, &alpha, mat1_local.c, &i1, &i1, desc1,
+            mat2_local.c, &i1, &i1, desc2, &beta, mat3_local.c, &i1, &i1, desc3);
 
     // linalg::pgemm('N', 'N', m, n, k, 1.0,
     //               mat1_local.c, 1, 1, desc_mat1.desc_raw,
