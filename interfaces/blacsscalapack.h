@@ -1,12 +1,16 @@
 #pragma once
 
 #include <complex>
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif /* __cplusplus */
-    void blacs_gridinit_(int *ictxt, const char *order, const int *nprow, const int *npcol);
+    void blacs_gridinit_(int *ictxt, const char *layout, const int *nprow, const int *npcol);
     void blacs_gridinfo_(const int *ictxt, int *nprow, int *npcol, int *myprow, int *mypcol);
+    int Csys2blacs_handle(int SysCtxt);
+    void Cblacs_gridinfo(int ictxt, int *nprow, int *npcol, int *myprow, int *mypcol);
+    void Cblacs_gridinit(int *ictxt, char *layout, int nprow, int npcol);
     int numroc_(const int *n, const int *nb, const int *iproc, const int *srcproc, const int *nprocs);
     void descinit_(int *desc,
                    const int *m, const int *n, const int *mb, const int *nb,

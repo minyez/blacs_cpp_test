@@ -10,72 +10,87 @@
 #include "scalapack_utils.h"
 #include "vec.h"
 
+// major dependent flattend index of 2D matrix
+// row-major
+inline int flatid_rm(const int &nr, const int &ir, const int &nc, const int &ic) { return ir*nc+ic; }
+// column-major
+inline int flatid_cm(const int &nr, const int &ir, const int &nc, const int &ic) { return ic*nr+ir; }
+// wrapper
+inline int flatid(const int &nr, const int &ir, const int &nc, const int &ic, bool row_major)
+{
+    return row_major? flatid_rm(nr, ir, nc, ic) : flatid_cm(nr, ir, nc, ic);
+}
+
 template <typename T>
 class matrix
 {
+public:
+    enum MAJOR { ROW, COL };
 private:
-    int mrank;
+    MAJOR major_;
+    int mrank_;
     int size_;
     int nr_;
     int nc_;
 public:
     using real_t = typename to_real<T>::type;
+    using cplx_t = typename to_cplx<T>::type;
 
     constexpr static const double EQUAL_THRES = DOUBLE_EQUAL_THRES;
     bool is_complex() { return is_complex_t<T>::value; }
     T *c;
-    matrix() : nr_(0), nc_(0), c(nullptr) { mrank = size_ = 0; }
-    matrix(const int &nrows, const int &ncols): nr_(nrows), nc_(ncols), c(nullptr)
+    matrix() : nr_(0), nc_(0), major_('R'), c(nullptr) { mrank_ = size_ = 0; }
+    matrix(const int &nrows, const int &ncols, MAJOR major = MAJOR::ROW): nr_(nrows), nc_(ncols), major_(major), c(nullptr)
     {
         if (nr_&&nc_)
         {
             c = new T [nr_*nc_];
-            mrank = std::min(nr_, nc_);
+            mrank_ = std::min(nr_, nc_);
             size_ = nr_ * nc_;
         }
         zero_out();
     }
-    matrix(const std::vector<vec<T>> &nested_vec): nr_(nested_vec.size()), c(nullptr)
+    matrix(const std::vector<vec<T>> &nested_vec, MAJOR major = MAJOR::ROW): major_(major), c(nullptr)
     {
-        if (nested_vec.size() != 0)
-            nc_ = nested_vec[0].size();
+        get_nr_nc_from_nested_vec(nested_vec, nr_, nc_);
         if (nr_&&nc_)
         {
             c = new T [nr_*nc_];
-            mrank = std::min(nr_, nc_);
+            mrank_ = std::min(nr_, nc_);
             size_ = nr_ * nc_;
-            for (int ir = 0; ir < nr_; ir++)
-                for (int ic = 0; ic < std::min(nc_, nested_vec[ir].size()); ic++)
-                    c[ir*nc_+ic] = nested_vec[ir][ic];
+            expand_nested_vector_to_pointer(nested_vec, nr_, nc_, c, is_row_major());
         }
     }
-    matrix(const int &nrows, const int &ncols, const T * const valarr): nr_(nrows), nc_(ncols), c(nullptr)
+
+    matrix(const int &nrows, const int &ncols, const T * const valarr, MAJOR major = MAJOR::ROW): nr_(nrows), nc_(ncols), major_(major), c(nullptr)
     {
         if (nr_&&nc_)
         {
-            mrank = std::min(nr_, nc_);
+            mrank_ = std::min(nr_, nc_);
             size_ = nr_ * nc_;
             c = new T [nr_*nc_];
         }
         zero_out();
         // do not manually check out of bound
+        // data are copied from valarr as it is, instead of which major one chooses
         for (int i = 0; i < size(); i++)
             c[i] = valarr[i];
     }
-    matrix(const matrix &m): nr_(m.nr_), nc_(m.nc_), c(nullptr)
+
+    matrix(const matrix &m): nr_(m.nr_), nc_(m.nc_), major_(m.major_), c(nullptr)
     {
         if( nr_ && nc_ )
         {
             c = new T[nr_*nc_];
-            mrank = std::min(nr_, nc_);
+            mrank_ = std::min(nr_, nc_);
             size_ = nr_ * nc_;
             memcpy(c, m.c, nr_*nc_*sizeof(T));
         }
     }
-    matrix(matrix &&m) : nr_(m.nr_), nc_(m.nc_)
+    matrix(matrix &&m) : nr_(m.nr_), nc_(m.nc_), major_(m.major_)
     {
         c = m.c;
-        mrank = m.mrank;
+        mrank_ = m.mrank_;
         size_ = m.size_;
         m.nr_ = m.nc_ = 0;
         m.c = nullptr;
@@ -83,7 +98,7 @@ public:
 
     ~matrix()
     {
-        nc_ = nr_ = mrank = size_ = 0;
+        nc_ = nr_ = mrank_ = size_ = 0;
         if (c)
         {
             delete [] c;
@@ -93,13 +108,35 @@ public:
 
     int nr() const { return nr_; }
     int nc() const { return nc_; }
+    bool is_row_major() const { return major_ == MAJOR::ROW; }
+    bool is_col_major() const { return major_ == MAJOR::COL; }
     int size() const { return size_; }
     void zero_out() { for (int i = 0; i < size(); i++) c[i] = 0.; }
 
     vec<T> get_row(int ir) const
     {
         if (ir < 0 || ir >= nr_) throw std::invalid_argument("out-of-bound row index");
-        return vec<T>(nc_, c+ir*nc_);
+        if (is_row_major())
+            return vec<T>(nc_, c+ir*nc_);
+        else
+        {
+            vec<T> v(nc_);
+            for (int ic = 0; ic < nc_; ic++)
+                v[ic] = this->at_by_cm(ir, ic);
+        }
+    }
+
+    vec<T> get_col(int ic) const
+    {
+        if (ic < 0 || ic >= nc_) throw std::invalid_argument("out-of-bound col index");
+        if (is_col_major())
+            return vec<T>(nc_, c+ic*nr_);
+        else
+        {
+            vec<T> v(nc_);
+            for (int ir = 0; ir < nc_; ir++)
+                v[ir] = this->at_by_cm(ir, ic);
+        }
     }
 
     void random(const real_t &lb, const real_t &ub)
@@ -112,17 +149,55 @@ public:
 
     void set_diag(const T &v)
     {
-        for (int i = 0; i < mrank; i++)
-            c[i*nc_+i] = v;
+        if (is_row_major())
+        {
+            for (int i = 0; i < mrank_; i++)
+                this->at_by_rm(i, i) = v;
+        }
+        else
+        {
+            for (int i = 0; i < mrank_; i++)
+                this->at_by_cm(i, i) = v;
+        }
     }
 
-    T &operator()(const int ir, const int ic) { return c[ir*nc_+ic]; }
-    const T &operator()(const int ir, const int ic) const { return c[ir*nc_+ic]; }
+    void swap_to_row_major()
+    {
+        if (is_col_major())
+        {
+            int nr = nr_, nc = nc_;
+            transpose();
+            reshape(nc, nr);
+            major_ = MAJOR::ROW;
+        }
+    };
+    void swap_to_col_major()
+    {
+        if (is_row_major())
+        {
+            int nr = nr_, nc = nc_;
+            transpose();
+            reshape(nr, nc);
+            major_ = MAJOR::COL;
+        }
+    };
+
+    // major independent matrix index
+    T &operator()(const int ir, const int ic) { return this->at(ir, ic); }
+    const T &operator()(const int ir, const int ic) const { return this->at(ir, ic); }
+    T &at(const int ir, const int ic) { return c[flatid(nr_, ir, nc_, ic, is_row_major())]; }
+    const T &at(const int ir, const int ic) const { return c[flatid(nr_, ir, nc_, ic, is_row_major())]; }
+    // major dependent matrix index
+    T &at_by_rm(const int ir, const int ic) { return c[flatid_rm(nr_, ir, nc_, ic)]; }
+    const T &at_by_rm(const int ir, const int ic) const { return c[flatid_rm(nr_, ir, nc_, ic)]; }
+    T &at_by_cm(const int ir, const int ic) { return c[flatid_cm(nr_, ir, nc_, ic)]; }
+    const T &at_by_cm(const int ir, const int ic) const { return c[flatid_cm(nr_, ir, nc_, ic)]; }
 
     matrix<T> & operator=(const matrix<T> &m)
     {
         if (this == &m) return *this;
         resize(m.nr_, m.nc_);
+        major_ = m.major_;
         memcpy(c, m.c, nr_*nc_*sizeof(T));
         return *this;
     }
@@ -132,8 +207,9 @@ public:
         if (this == &m) return *this;
         nr_ = m.nr_;
         nc_ = m.nc_;
-        mrank = m.mrank;
+        mrank_ = m.mrank_;
         size_ = m.size_;
+        major_ = m.major_;
         if(c) delete [] c;
         c = m.c;
         m.nr_ = m.nc_ = 0;
@@ -143,16 +219,12 @@ public:
 
     matrix<T> & operator=(const std::vector<vec<T>> &nested_vec)
     {
-        int nr_new = nested_vec.size();
-        int nc_new = 0;
-        if (nr_new != 0)
-            nc_new = nested_vec[0].size();
+        int nr_new, nc_new;
+        get_nr_nc_from_nested_vec(nested_vec, nr_new, nc_new);
         resize(nr_new, nc_new);
         if (nr_&&nc_)
         {
-            for (int ir = 0; ir < nr_; ir++)
-                for (int ic = 0; ic < std::min(nc_, nested_vec[ir].size()); ic++)
-                    c[ir*nc_+ic] = nested_vec[ir][ic];
+            expand_nested_vector_to_pointer(nested_vec, nr_, nc_, c, is_row_major());
         }
         return *this;
     }
@@ -167,7 +239,7 @@ public:
     bool operator==(const matrix<T> &m) const
     {
         if (size() == 0 || m.size() == 0) return false;
-        if (nc_ != m.nc_ || nr_ != m.nr_) return false;
+        if (nc_ != m.nc_ || nr_ != m.nr_ || major_ != m.major_) return false;
         for (int i = 0; i < size(); i++)
             if (fabs(c[i] - m.c[i]) > matrix<T>::EQUAL_THRES) return false;
         return true;
@@ -256,15 +328,15 @@ public:
             c[i] /= cnum;
     }
 
-    void reshape(const int &nrows_new, const int &ncols_new)
+    void reshape(int nrows_new, int ncols_new)
     {
         assert ( size() == nrows_new * ncols_new);
         nr_ = nrows_new;
         nc_ = ncols_new;
-        mrank = std::min(nr_, nc_);
+        mrank_ = std::min(nr_, nc_);
     }
 
-    void resize(const int &nrows_new, const int &ncols_new)
+    void resize(int nrows_new, int ncols_new)
     {
         const int size_new = nrows_new * ncols_new;
         if (size_new)
@@ -287,21 +359,49 @@ public:
         }
         nr_ = nrows_new;
         nc_ = ncols_new;
-        mrank = std::min(nr_, nc_);
+        mrank_ = std::min(nr_, nc_);
         size_ = nr_ * nc_;
         zero_out();
     }
     void conj() {};
 
-    void transpose(bool conjugate = false)
+    void transpose(bool conjugate = false, bool onsite_when_square_mat = true)
     {
-        for (int i = 0; i < nr_; i++)
-            for (int j = i + 1; j < nc_; j++)
+        if (nr_ == nc_ && onsite_when_square_mat)
+        {
+            // handling within the memory of c pointer for square matrix
+            int n = nr_;
+            for (int i = 0; i != n; i++)
+                for (int j = i+1; j < n; j++)
+                {
+                    T temp = c[i*n+j];
+                    c[i*n+j] = c[j*n+i];
+                    c[j*n+i] = temp;
+                }
+        }
+        else
+        {
+            // NOTE: may have memory issue for large matrix as extra memory of c is required
+            T* c_new = nullptr;
+            if (c)
             {
-                T temp = c[i*nr_ + j];
-                c[i*nr_ + j] = c[j*nc_+i];
-                c[j*nc_+i] = temp;
+                c_new = new T [nr_*nc_];
+                if (is_row_major())
+                {
+                    for (int i = 0; i < nr_; i++)
+                        for (int j = 0; j < nc_; j++)
+                            c_new[flatid_rm(nc_, j, nr_, i)] = this->at_by_rm(i, j);
+                }
+                else
+                {
+                    for (int j = 0; j < nc_; j++)
+                        for (int i = 0; i < nr_; i++)
+                            c_new[flatid_cm(nc_, j, nr_, i)] = this->at_by_cm(i, j);
+                }
+                delete [] c;
             }
+            c = c_new;
+        }
         int temp = nc_;
         nr_ = temp;
         nc_ = nr_;
@@ -309,6 +409,14 @@ public:
     }
 
     T det() const { return get_determinant(*this); }
+
+    matrix<cplx_t> to_complex()
+    {
+        matrix<cplx_t> m(nr_, nc_, major_);
+        for (int i = 0; i < size_; i++)
+            m.c[i] = c[i];
+        return m;
+    }
 };
 
 template <> inline void matrix<std::complex<float>>::conj()
@@ -324,9 +432,21 @@ template <> inline void matrix<std::complex<double>>::conj()
 }
 
 template <typename T1, typename T2>
+inline bool same_major(const matrix<T1> &m1, matrix<T2> &m2)
+{
+    return m1.major() == m2.major();
+}
+
+template <typename T1, typename T2>
+inline bool same_type(const matrix<T1> &m1, matrix<T2> &m2)
+{
+    return std::is_same<T1, T2>::value;
+}
+
+template <typename T1, typename T2>
 void copy(const matrix<T1> &src, matrix<T2> &dest)
 {
-    assert(src.size() == dest.size());
+    assert(src.size() == dest.size() || same_major(src, dest));
     for (int i = 0; i < src.size(); i++)
         dest.c[i] = src.c[i];
 }
@@ -334,15 +454,14 @@ void copy(const matrix<T1> &src, matrix<T2> &dest)
 template <typename T>
 matrix<T> operator+(const matrix<T> &m1, const matrix<T> &m2)
 {
-    assert(m1.nc() == m2.nc());
-    assert(m1.nr() == m2.nr());
+    assert(m1.nc() == m2.nc() && m1.nr() == m2.nr() && same_major(m1, m2));
     matrix<T> sum = m1;
     sum += m2;
     return sum;
 }
 
 template <typename T>
-matrix<T> operator+(const matrix<T> &m, const std::vector<T> &v)
+inline matrix<T> operator+(const matrix<T> &m, const std::vector<T> &v)
 {
     assert(m.nc() == v.size());
     matrix<T> mnew(m);
@@ -351,7 +470,7 @@ matrix<T> operator+(const matrix<T> &m, const std::vector<T> &v)
 }
 
 template <typename T>
-matrix<T> operator+(const matrix<T> &m, const T &cnum)
+inline matrix<T> operator+(const matrix<T> &m, const T &cnum)
 {
     matrix<T> sum = m;
     sum += cnum;
@@ -359,13 +478,13 @@ matrix<T> operator+(const matrix<T> &m, const T &cnum)
 }
 
 template <typename T>
-matrix<T> operator+(const T &cnum, const matrix<T> &m)
+inline matrix<T> operator+(const T &cnum, const matrix<T> &m)
 {
     return m + cnum;
 }
 
 template <typename T>
-matrix<T> operator-(const matrix<T> &m1, const matrix<T> &m2)
+inline matrix<T> operator-(const matrix<T> &m1, const matrix<T> &m2)
 {
     assert(m1.nc() == m2.nc() && m1.nr() == m2.nr());
     matrix<T> mnew = m1;
@@ -374,7 +493,7 @@ matrix<T> operator-(const matrix<T> &m1, const matrix<T> &m2)
 }
 
 template <typename T>
-matrix<T> operator-(const matrix<T> &m, const std::vector<T> &v)
+inline matrix<T> operator-(const matrix<T> &m, const std::vector<T> &v)
 {
     assert(m.nc() == v.size());
     matrix<T> mnew = m;
@@ -383,7 +502,7 @@ matrix<T> operator-(const matrix<T> &m, const std::vector<T> &v)
 }
 
 template <typename T>
-matrix<T> operator-(const matrix<T> &m, const T &cnum)
+inline matrix<T> operator-(const matrix<T> &m, const T &cnum)
 {
     matrix<T> mnew = m;
     mnew -= cnum;
@@ -392,13 +511,13 @@ matrix<T> operator-(const matrix<T> &m, const T &cnum)
 
 
 template <typename T>
-matrix<T> operator-(const T &cnum, const matrix<T> &m)
+inline matrix<T> operator-(const T &cnum, const matrix<T> &m)
 {
     return - m + cnum;
 }
 
 template <typename T>
-matrix<T> operator*(const matrix<T> &m1, const matrix<T> &m2)
+inline matrix<T> operator*(const matrix<T> &m1, const matrix<T> &m2)
 {
     assert(m1.nc() == m2.nr());
 
@@ -423,7 +542,7 @@ inline matrix<int> operator*(const matrix<int> &m1, const matrix<int> &m2)
 }
 
 template <typename T>
-vec<T> operator*(const matrix<T> &m, const vec<T> &v)
+inline vec<T> operator*(const matrix<T> &m, const vec<T> &v)
 {
     assert(m.nc() == v.n);
     vec<T> mv(m.nr());
@@ -432,7 +551,7 @@ vec<T> operator*(const matrix<T> &m, const vec<T> &v)
 }
 
 template <typename T>
-vec<T> operator*(const vec<T> &v, const matrix<T> &m)
+inline vec<T> operator*(const vec<T> &v, const matrix<T> &m)
 {
     assert(m.nr() == v.n);
     vec<T> mv(m.nc());
@@ -442,7 +561,7 @@ vec<T> operator*(const vec<T> &v, const matrix<T> &m)
 }
 
 template <typename T>
-matrix<T> operator*(const matrix<T> &m, const T &cnum)
+inline matrix<T> operator*(const matrix<T> &m, const T &cnum)
 {
     matrix<T> sum = m;
     sum *= cnum;
@@ -450,13 +569,13 @@ matrix<T> operator*(const matrix<T> &m, const T &cnum)
 }
 
 template <typename T>
-matrix<T> operator*(const T &cnum, const matrix<T> &m)
+inline matrix<T> operator*(const T &cnum, const matrix<T> &m)
 {
     return m * cnum;
 }
 
 template <typename T>
-matrix<T> inverse(const matrix<T> &m)
+inline matrix<T> inverse(const matrix<T> &m)
 {
     if (m.size() == 0) throw std::invalid_argument("zero size matrix");
     matrix<T> inv;
@@ -481,7 +600,7 @@ void inverse(const matrix<T> &m, matrix<T> &m_inv)
 }
 
 template <typename T>
-matrix<T> transpose(const matrix<T> &m, bool conjugate = false)
+inline matrix<T> transpose(const matrix<T> &m, bool conjugate = false)
 {
     matrix<T> mnew(m);
     mnew.transpose(conjugate);
@@ -672,7 +791,6 @@ matrix<std::complex<T>> random_he(int n, const std::complex<T> &lb, const std::c
 template <typename T>
 matrix<T> init_local_mat(const ArrayDesc &ad)
 {
-    // assert the shape of matrix conforms with the array descriptor
     matrix<T> mat_lo(ad.num_r(), ad.num_c());
     return mat_lo;
 }
@@ -716,10 +834,4 @@ void get_local_mat(matrix<T1> &mat_lo, const matrix<T2> &mat_go, const ArrayDesc
             mat_lo(i_lo, j_lo) = mat_go(i, j);
         }
     }
-}
-
-template <typename T>
-void gather_mat(matrix<T> &mat_lo, const matrix<T> &mat_go, const ArrayDesc &ad)
-{
-
 }

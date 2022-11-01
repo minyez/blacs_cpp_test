@@ -32,7 +32,7 @@ private:
     int nb_;
     int irsrc_;
     int icsrc_;
-    int ldd_;
+    int lld_;
     int m_local_;
     int n_local_;
 public:
@@ -40,8 +40,7 @@ public:
     ArrayDesc(const BLACS_handler &blacs_h): blacs_h_(blacs_h) {};
     int init(const int &m, const int &n,
              const int &mb, const int &nb,
-             const int &irsrc, const int &icsrc,
-             int ldd = -1);
+             const int &irsrc, const int &icsrc);
     int to_loid_r(int goid) const;
     int to_loid_c(int goid) const;
     int to_goid_r(int loid) const;

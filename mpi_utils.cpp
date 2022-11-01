@@ -13,6 +13,17 @@ void MPI_wrapper::init(int *argc, char ***argv)
 #endif
 }
 
+void MPI_wrapper::init(int *argc, char ***argv, int thread_option)
+{
+#ifdef __MPI__
+    int provided;
+    MPI_Init_thread(argc, argv, thread_option, &provided);
+    comm_world = MPI_COMM_WORLD;
+#else
+    comm_world = 0;
+#endif
+}
+
 void MPI_wrapper::finalize()
 {
 #ifdef __MPI__

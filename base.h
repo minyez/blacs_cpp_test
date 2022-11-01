@@ -38,3 +38,7 @@ struct to_real { using type = T; };
 template <typename T>
 struct to_real<std::complex<T>> { using type = T; };
 
+template <typename T>
+struct to_cplx { using type = std::complex<T>; };
+template <typename T>
+struct to_cplx<std::complex<T>> { using type = T; };

@@ -295,12 +295,18 @@ namespace linalg
         // transpose_desc( DESCA_T, DESCA );
         // transpose_desc( DESCB_T, DESCB );
         // transpose_desc( DESCC_T, DESCC );
-        psgemm_(&transb, &transa,
-                &N, &M, &K, &alpha,
-                B, &JB, &IB, DESCB,
-                A, &JA, &IA, DESCA,
+        // psgemm_(&transb, &transa,
+        //         &N, &M, &K, &alpha,
+        //         B, &JB, &IB, DESCB,
+        //         A, &JA, &IA, DESCA,
+        //         &beta,
+        //         C, &JC, &IC, DESCC);
+        psgemm_(&transa, &transb,
+                &M, &N, &K, &alpha,
+                A, &IA, &JA, DESCA,
+                B, &IB, &JB, DESCB,
                 &beta,
-                C, &JC, &IC, DESCC);
+                C, &IC, &JC, DESCC);
     }
 
     inline
@@ -316,12 +322,12 @@ namespace linalg
         // transpose_desc( DESCA_T, DESCA );
         // transpose_desc( DESCB_T, DESCB );
         // transpose_desc( DESCC_T, DESCC );
-        pdgemm_(&transb, &transa,
-                &N, &M, &K, &alpha,
-                B, &JB, &IB, DESCB,
-                A, &JA, &IA, DESCA,
+        pdgemm_(&transa, &transb,
+                &M, &N, &K, &alpha,
+                A, &IA, &JA, DESCA,
+                B, &IB, &JB, DESCB,
                 &beta,
-                C, &JC, &IC, DESCC);
+                C, &IC, &JC, DESCC);
     }
 
     inline
@@ -337,12 +343,12 @@ namespace linalg
         // transpose_desc( DESCA_T, DESCA );
         // transpose_desc( DESCB_T, DESCB );
         // transpose_desc( DESCC_T, DESCC );
-        pcgemm_(&transb, &transa,
-                &N, &M, &K, &alpha,
-                B, &JB, &IB, DESCB,
-                A, &JA, &IA, DESCA,
+        pcgemm_(&transa, &transb,
+                &M, &N, &K, &alpha,
+                A, &IA, &JA, DESCA,
+                B, &IB, &JB, DESCB,
                 &beta,
-                C, &JC, &IC, DESCC);
+                C, &IC, &JC, DESCC);
     }
 
     inline
@@ -354,16 +360,12 @@ namespace linalg
                const std::complex<double> &beta,
                std::complex<double> *C, const int &IC, const int &JC, const int *DESCC)
     {
-        // int DESCA_T[9], DESCB_T[9], DESCC_T[9];
-        // transpose_desc( DESCA_T, DESCA );
-        // transpose_desc( DESCB_T, DESCB );
-        // transpose_desc( DESCC_T, DESCC );
-        pzgemm_(&transb, &transa,
-                &N, &M, &K, &alpha,
-                B, &JB, &IB, DESCB,
-                A, &JA, &IA, DESCA,
+        pzgemm_(&transa, &transb,
+                &M, &N, &K, &alpha,
+                A, &IA, &JA, DESCA,
+                B, &IB, &JB, DESCB,
                 &beta,
-                C, &JC, &IC, DESCC);
+                C, &IC, &JC, DESCC);
     }
 
     inline

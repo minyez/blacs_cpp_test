@@ -46,9 +46,12 @@ BLACS_handler::BLACS_handler(int comm_in, const char &layout_in, const int &npro
 void BLACS_handler::set_blacs_params()
 {
 #ifdef __MPI__
-    ictxt = MPI_Comm_c2f(comm);
-    blacs_gridinit_(&ictxt, &layout, &nprows, &npcols);
-    blacs_gridinfo_(&ictxt, &nprows, &npcols, &myprow, &mypcol);
+    // ictxt = MPI_Comm_c2f(comm);
+    // blacs_gridinit_(&ictxt, &layout, &nprows, &npcols);
+    // blacs_gridinfo_(&ictxt, &nprows, &npcols, &myprow, &mypcol);
+    ictxt = Csys2blacs_handle(comm);
+    Cblacs_gridinit(&ictxt, &layout, nprows, npcols);
+    Cblacs_gridinfo(ictxt, &nprows, &npcols, &myprow, &mypcol);
 #else
     ictxt = comm;
     myprow = mypcol = 0;
@@ -67,11 +70,9 @@ std::string BLACS_handler::info() const
     return info;
 }
 
-int ArrayDesc::init(const int &m, const int &n, const int &mb, const int &nb, const int &irsrc, const int &icsrc, int ldd)
+int ArrayDesc::init(const int &m, const int &n, const int &mb, const int &nb, const int &irsrc, const int &icsrc)
 {
     int info;
-    if (ldd <= 0)
-        ldd = m;
 #ifdef __MPI__
     m_local_ = linalg::numroc(m, mb, blacs_h_.myprow, irsrc, blacs_h_.nprows);
     n_local_ = linalg::numroc(n, nb, blacs_h_.mypcol, icsrc, blacs_h_.npcols);
@@ -82,7 +83,7 @@ int ArrayDesc::init(const int &m, const int &n, const int &mb, const int &nb, co
     nb_ = desc[5];
     irsrc_ = desc[6];
     icsrc_ = desc[7];
-    ldd_ = desc[8];
+    lld_ = desc[8];
 #else
     desc[0] = 1;
     desc[1] = blacs_h_.ictxt;
@@ -92,10 +93,10 @@ int ArrayDesc::init(const int &m, const int &n, const int &mb, const int &nb, co
     desc[5] = nb_ = nb;
     desc[6] = irsrc_ = irsrc;
     desc[7] = icsrc_ = icsrc;
-    desc[8] = ldd_ = ldd;
+    desc[8] = lld_ = m;
     m_local_ = m_;
     n_local_ = n_;
-    ldd_ = m_local_;
+    lld_ = m_local_;
     info = 0;
 #endif
     return info;

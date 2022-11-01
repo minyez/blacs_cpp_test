@@ -10,7 +10,6 @@ using namespace std;
 int main (int argc, char *argv[])
 {
     int provided, info;
-    // MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     MPI_wrapper mpi;
     mpi.init(&argc, &argv);
 
@@ -18,7 +17,7 @@ int main (int argc, char *argv[])
     printf("%s\n", blacs_h.info().c_str());
     blacs_h.barrier();
 
-    const int m = 4, n = 4, k = 4;
+    const int m = 3, n = 4, k = 2;
     const int mb = 1, nb= 1, kb = 1;
     const int IRSRC = 0, ICSRC = 0;
 
