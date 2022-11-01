@@ -47,10 +47,10 @@ int main (int argc, char *argv[])
     desc_mat2.init(k, n, kb, nb, IRSRC, ICSRC);
     desc_mat3.init(m, n, mb, nb, IRSRC, ICSRC);
 
-    // initialize local matrices
-    auto mat1_local = get_local_mat(mat1, desc_mat1);
-    auto mat2_local = get_local_mat(mat2, desc_mat2);
-    auto mat3_local = get_local_mat(mat3, desc_mat3);
+    // initialize local matrices with column-major memory arrangement
+    auto mat1_local = get_local_mat(mat1, desc_mat1, MAJOR::COL);
+    auto mat2_local = get_local_mat(mat2, desc_mat2, MAJOR::COL);
+    auto mat3_local = get_local_mat(mat3, desc_mat3, MAJOR::COL);
     assert(mat1_local.is_col_major() && mat2_local.is_col_major() && mat3_local.is_col_major());
 
     printf("mat1_local of %s\n%s", desc_mat1.info().c_str(), str(mat1_local).c_str());
@@ -70,13 +70,9 @@ int main (int argc, char *argv[])
     linalg::descinit(desc1, m, k, mb, kb, IRSRC, ICSRC, blacs_h.ictxt, mat1_local.nr(), info);
     linalg::descinit(desc2, k, n, kb, nb, IRSRC, ICSRC, blacs_h.ictxt, mat2_local.nr(), info);
     linalg::descinit(desc3, m, n, mb, nb, IRSRC, ICSRC, blacs_h.ictxt, mat3_local.nr(), info);
-    pdgemm_(&transn, &transn, &m, &n, &k, &alpha, mat1_local.c, &i1, &i1, desc1,
-            mat2_local.c, &i1, &i1, desc2, &beta, mat3_local.c, &i1, &i1, desc3);
+    linalg::pgemm_f('N', 'N', m, n, k, alpha, mat1_local.c, 1, 1, desc1,
+                    mat2_local.c, 1, 1, desc2, beta, mat3_local.c, 1, 1, desc3);
 
-    // linalg::pgemm('N', 'N', m, n, k, 1.0,
-    //               mat1_local.c, 1, 1, desc_mat1.desc_raw,
-    //               mat2_local.c, 1, 1, desc_mat2.desc_raw,
-    //               0.0, mat3_local.c, 1, 1, desc_mat3.desc_raw);
     blacs_h.barrier();
     printf("mat3_local of %s\n%s", desc_mat3.info().c_str(), str(mat3_local).c_str());
 

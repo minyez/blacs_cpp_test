@@ -271,38 +271,17 @@ namespace linalg
         delete [] a_fort;
     }
 
-    // blacs and scalapck
-    static void transpose_desc(int desc_T[9], const int desc[9])
-    {
-        // desc: 
-        memcpy(desc_T, desc, 9*sizeof(int));
-        desc_T[2] = desc[3];
-        desc_T[3] = desc[2];
-        desc_T[4] = desc[5];
-        desc_T[5] = desc[4];
-    }
-
+    // suffix _f indicates the IO matrices stored in memory in fortran format, i.e. column-major
     inline
-    void pgemm(const char &transa, const char &transb,
-               const int &M, const int &N, const int &K,
-               const float &alpha,
-               const float *A, const int &IA, const int &JA, const int *DESCA,
-               const float *B, const int &IB, const int &JB, const int *DESCB,
-               const float &beta,
-               float *C, const int &IC, const int &JC, const int *DESCC)
+    void pgemm_f(const char &transa, const char &transb,
+                 const int &M, const int &N, const int &K,
+                 const float &alpha,
+                 const float *A, const int &IA, const int &JA, const int *DESCA,
+                 const float *B, const int &IB, const int &JB, const int *DESCB,
+                 const float &beta,
+                 float *C, const int &IC, const int &JC, const int *DESCC)
     {
-        // int DESCA_T[9], DESCB_T[9], DESCC_T[9];
-        // transpose_desc( DESCA_T, DESCA );
-        // transpose_desc( DESCB_T, DESCB );
-        // transpose_desc( DESCC_T, DESCC );
-        // psgemm_(&transb, &transa,
-        //         &N, &M, &K, &alpha,
-        //         B, &JB, &IB, DESCB,
-        //         A, &JA, &IA, DESCA,
-        //         &beta,
-        //         C, &JC, &IC, DESCC);
-        psgemm_(&transa, &transb,
-                &M, &N, &K, &alpha,
+        psgemm_(&transa, &transb, &M, &N, &K, &alpha,
                 A, &IA, &JA, DESCA,
                 B, &IB, &JB, DESCB,
                 &beta,
@@ -310,20 +289,15 @@ namespace linalg
     }
 
     inline
-    void pgemm(const char &transa, const char &transb,
-               const int &M, const int &N, const int &K,
-               const double &alpha,
-               const double *A, const int &IA, const int &JA, const int *DESCA,
-               const double *B, const int &IB, const int &JB, const int *DESCB,
-               const double &beta,
-               double *C, const int &IC, const int &JC, const int *DESCC)
+    void pgemm_f(const char &transa, const char &transb,
+                 const int &M, const int &N, const int &K,
+                 const double &alpha,
+                 const double *A, const int &IA, const int &JA, const int *DESCA,
+                 const double *B, const int &IB, const int &JB, const int *DESCB,
+                 const double &beta,
+                 double *C, const int &IC, const int &JC, const int *DESCC)
     {
-        // int DESCA_T[9], DESCB_T[9], DESCC_T[9];
-        // transpose_desc( DESCA_T, DESCA );
-        // transpose_desc( DESCB_T, DESCB );
-        // transpose_desc( DESCC_T, DESCC );
-        pdgemm_(&transa, &transb,
-                &M, &N, &K, &alpha,
+        pdgemm_(&transa, &transb, &M, &N, &K, &alpha,
                 A, &IA, &JA, DESCA,
                 B, &IB, &JB, DESCB,
                 &beta,
@@ -331,20 +305,15 @@ namespace linalg
     }
 
     inline
-    void pgemm(const char &transa, const char &transb,
-               const int &M, const int &N, const int &K,
-               const std::complex<float> &alpha,
-               const std::complex<float> *A, const int &IA, const int &JA, const int *DESCA,
-               const std::complex<float> *B, const int &IB, const int &JB, const int *DESCB,
-               const std::complex<float> &beta,
-               std::complex<float> *C, const int &IC, const int &JC, const int *DESCC)
+    void pgemm_f(const char &transa, const char &transb,
+                 const int &M, const int &N, const int &K,
+                 const std::complex<float> &alpha,
+                 const std::complex<float> *A, const int &IA, const int &JA, const int *DESCA,
+                 const std::complex<float> *B, const int &IB, const int &JB, const int *DESCB,
+                 const std::complex<float> &beta,
+                 std::complex<float> *C, const int &IC, const int &JC, const int *DESCC)
     {
-        // int DESCA_T[9], DESCB_T[9], DESCC_T[9];
-        // transpose_desc( DESCA_T, DESCA );
-        // transpose_desc( DESCB_T, DESCB );
-        // transpose_desc( DESCC_T, DESCC );
-        pcgemm_(&transa, &transb,
-                &M, &N, &K, &alpha,
+        pcgemm_(&transa, &transb, &M, &N, &K, &alpha,
                 A, &IA, &JA, DESCA,
                 B, &IB, &JB, DESCB,
                 &beta,
@@ -352,16 +321,15 @@ namespace linalg
     }
 
     inline
-    void pgemm(const char &transa, const char &transb,
-               const int &M, const int &N, const int &K,
-               const std::complex<double> &alpha,
-               const std::complex<double> *A, const int &IA, const int &JA, const int *DESCA,
-               const std::complex<double> *B, const int &IB, const int &JB, const int *DESCB,
-               const std::complex<double> &beta,
-               std::complex<double> *C, const int &IC, const int &JC, const int *DESCC)
+    void pgemm_f(const char &transa, const char &transb,
+                 const int &M, const int &N, const int &K,
+                 const std::complex<double> &alpha,
+                 const std::complex<double> *A, const int &IA, const int &JA, const int *DESCA,
+                 const std::complex<double> *B, const int &IB, const int &JB, const int *DESCB,
+                 const std::complex<double> &beta,
+                 std::complex<double> *C, const int &IC, const int &JC, const int *DESCC)
     {
-        pzgemm_(&transa, &transb,
-                &M, &N, &K, &alpha,
+        pzgemm_(&transa, &transb, &M, &N, &K, &alpha,
                 A, &IA, &JA, DESCA,
                 B, &IB, &JB, DESCB,
                 &beta,

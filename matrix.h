@@ -21,11 +21,11 @@ inline int flatid(const int &nr, const int &ir, const int &nc, const int &ic, bo
     return row_major? flatid_rm(nr, ir, nc, ic) : flatid_cm(nr, ir, nc, ic);
 }
 
+enum MAJOR { ROW, COL };
+
 template <typename T>
 class matrix
 {
-public:
-    enum MAJOR { ROW, COL };
 private:
     MAJOR major_;
     int mrank_;
@@ -39,7 +39,7 @@ public:
     constexpr static const double EQUAL_THRES = DOUBLE_EQUAL_THRES;
     bool is_complex() { return is_complex_t<T>::value; }
     T *c;
-    matrix() : nr_(0), nc_(0), major_('R'), c(nullptr) { mrank_ = size_ = 0; }
+    matrix() : nr_(0), nc_(0), major_(MAJOR::ROW), c(nullptr) { mrank_ = size_ = 0; }
     matrix(const int &nrows, const int &ncols, MAJOR major = MAJOR::ROW): nr_(nrows), nc_(ncols), major_(major), c(nullptr)
     {
         if (nr_&&nc_)
@@ -824,13 +824,12 @@ matrix<T> init_local_mat(const ArrayDesc &ad)
 }
 
 template <typename T>
-matrix<T> get_local_mat(const matrix<T> &mat_go, const ArrayDesc &ad)
+matrix<T> get_local_mat(const matrix<T> &mat_go, const ArrayDesc &ad, MAJOR major)
 {
     // assert the shape of matrix conforms with the array descriptor
     assert(mat_go.nr() == ad.m() && mat_go.nc() == ad.n());
-    assert(mat_go.is_row_major());
 
-    matrix<T> mat_lo(ad.num_r(), ad.num_c(), matrix<T>::MAJOR::COL);
+    matrix<T> mat_lo(ad.num_r(), ad.num_c(), major);
     for (int i = 0; i != mat_go.nr(); i++)
     {
         auto i_lo = ad.to_loid_r(i);
@@ -851,7 +850,6 @@ void get_local_mat(matrix<T1> &mat_lo, const matrix<T2> &mat_go, const ArrayDesc
     // assert the shape of matrix conforms with the array descriptor
     assert(mat_go.nr() == ad.m() && mat_go.nc() == ad.n());
     assert(mat_lo.nr() == ad.num_r() && mat_lo.nc() == ad.num_c());
-    assert(mat_go.is_row_major() && mat_lo.is_col_major());
 
     for (int i = 0; i != mat_go.nr(); i++)
     {
