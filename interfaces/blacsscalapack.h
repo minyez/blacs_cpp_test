@@ -7,7 +7,12 @@ extern "C"
 {
 #endif /* __cplusplus */
     void blacs_gridinit_(int *ictxt, const char *layout, const int *nprow, const int *npcol);
+    void blacs_gridmap_(int *ictxt, const int *usermap, const int *ldup, const int *nprow0, const int *npcol0);
     void blacs_gridinfo_(const int *ictxt, int *nprow, int *npcol, int *myprow, int *mypcol);
+    void blacs_setup_(int *pid, int *nprocs);
+    void blacs_pinfo_(int *pid, int *nprocs);
+    void blacs_get_(const int *ictxt, const int *what, int *val);
+    void blacs_set_(const int *ictxt, const int *what, const int *val);
     int Csys2blacs_handle(int SysCtxt);
     void Cblacs_gridinfo(int ictxt, int *nprow, int *npcol, int *myprow, int *mypcol);
     void Cblacs_gridinit(int *ictxt, char *layout, int nprow, int npcol);
@@ -16,6 +21,9 @@ extern "C"
                    const int *m, const int *n, const int *mb, const int *nb,
                    const int *irsrc, const int *icsrc, const int *ictxt, const int *lld,
                    int *info);
+    void blacs_pcoord_(const int *ictxt, const int *pid, int *prow, int *pcol);
+    int blacs_pnum_(const int *ictxt, const int *prow, const int *pcol);
+    void blacs_gridexit_(const int *ictxt);
 
     void pdpotrf_(char *uplo, int *n, double *a, int *ia, int *ja, int *desca, int *info);
     void pzpotrf_(char *uplo, int *n, std::complex<double> *a, int *ia, int *ja, int *desca, int *info);
@@ -112,6 +120,22 @@ extern "C"
                   const std::complex<double> *a, const int *ia, const int *ja, const int *desca,
                   const std::complex<double> *beta,
                   std::complex<double> *c, const int *ic, const int *jc, const int *descc);
+    void psgemr2d_(const int *m, const int *n,
+                   const float *a, const int *ia, const int *ja, const int *desca,
+                   float *b, const int *ib, const int *jb, const int *descb,
+                   const int *ictxt);
+    void pdgemr2d_(const int *m, const int *n,
+                   const double *a, const int *ia, const int *ja, const int *desca,
+                   double *b, const int *ib, const int *jb, const int *descb,
+                   const int *ictxt);
+    void pcgemr2d_(const int *m, const int *n,
+                   const std::complex<float> *a, const int *ia, const int *ja, const int *desca,
+                   std::complex<float>*b, const int *ib, const int *jb, const int *descb,
+                   const int *ictxt);
+    void pzgemr2d_(const int *m, const int *n,
+                   const std::complex<double> *a, const int *ia, const int *ja, const int *desca,
+                   std::complex<double> *b, const int *ib, const int *jb, const int *descb,
+                   const int *ictxt);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

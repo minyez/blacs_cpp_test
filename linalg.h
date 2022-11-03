@@ -341,19 +341,31 @@ namespace linalg
     {
         blacs_gridinit_(&ictxt, &order, &nprow, &npcol);
     }
-    
+
     inline
     void blacs_gridinfo(const int &ictxt, int &nprow, int &npcol, int &myprow, int &mypcol )
     {
         blacs_gridinfo_(&ictxt, &nprow, &npcol, &myprow, &mypcol);
     }
-	
+
+    inline
+    void blacs_pcoord(const int &ictxt, const int &pid, int &prow, int &pcol)
+    {
+        blacs_pcoord_(&ictxt, &pid, &prow, &pcol);
+    }
+
+    inline
+    int blacs_pnum(const int &ictxt, const int &prow, const int &pcol)
+    {
+        return blacs_pnum_(&ictxt, &prow, &pcol);
+    }
+
     inline
     int numroc(const int n, const int nb, const int iproc, const int srcproc, const int nprocs)
     {
         return numroc_(&n, &nb, &iproc, &srcproc, &nprocs);
     }
-    
+
     inline
     void descinit(int *desc, 
                   const int m, const int n, const int mb, const int nb,
@@ -361,5 +373,5 @@ namespace linalg
                   const int ictxt, const int lld, int &info)
     {
         descinit_(desc, &m, &n, &mb, &nb, &irsrc, &icsrc, &ictxt, &lld, &info);
-	}
+    }
 } /* namespace linalg */

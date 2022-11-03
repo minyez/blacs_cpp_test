@@ -7,6 +7,7 @@
 #include <random>
 #include "base.h"
 #include "linalg.h"
+#include "mpi_utils.h"
 #include "scalapack_utils.h"
 #include "vec.h"
 
@@ -33,6 +34,7 @@ private:
     int nr_;
     int nc_;
 public:
+    using type = T;
     using real_t = typename to_real<T>::type;
     using cplx_t = typename to_cplx<T>::type;
 
@@ -817,9 +819,9 @@ matrix<std::complex<T>> random_he(int n, const std::complex<T> &lb, const std::c
 /* ========================== */
 
 template <typename T>
-matrix<T> init_local_mat(const ArrayDesc &ad)
+matrix<T> init_local_mat(const ArrayDesc &ad, MAJOR major)
 {
-    matrix<T> mat_lo(ad.num_r(), ad.num_c());
+    matrix<T> mat_lo(ad.num_r(), ad.num_c(), major);
     return mat_lo;
 }
 
@@ -844,6 +846,46 @@ matrix<T> get_local_mat(const matrix<T> &mat_go, const ArrayDesc &ad, MAJOR majo
     return mat_lo;
 }
 
+template <typename T>
+matrix<T> get_local_mat_pcoord(const matrix<T> &mat_go,
+                               const int &mb, const int &nb,
+                               const int &irsrc, const int &icsrc,
+                               const int &nprows, const int &myprow,
+                               const int &npcols, const int &mypcol,
+                               MAJOR major)
+{
+    int m = mat_go.nr(), n = mat_go.nc();
+    int m_local = linalg::numroc(m, mb, myprow, irsrc, nprows);
+    int n_local = linalg::numroc(n, nb, mypcol, icsrc, npcols);
+    matrix<T> mat_lo(m_local, n_local, major);
+    for (int i = 0; i != m; i++)
+    {
+        auto i_lo = local_index(i, m, mb, nprows, myprow);
+        if (i_lo < 0) continue;
+        for (int j = 0; j != n; j++)
+        {
+            auto j_lo = local_index(j, n, nb, npcols, mypcol);
+            if (j_lo < 0) continue;
+            mat_lo(i_lo, j_lo) = mat_go(i, j);
+        }
+    }
+    return mat_lo;
+}
+
+//! wrapper of the above template, using process grid and layout of BLACS_handler
+template <typename T>
+matrix<T> get_local_mat_pid(const matrix<T> &mat_go,
+                            const int &mb, const int &nb,
+                            const int &irsrc, const int &icsrc,
+                            const BLACS_handler &blacs_h, const int &pid,
+                            MAJOR major)
+{
+    auto pcoord = get_pcoord_from_pid(pid, blacs_h.nprows, blacs_h.npcols, blacs_h.layout);
+    return get_local_mat_pcoord(mat_go, mb, nb, irsrc, icsrc,
+                                blacs_h.nprows, pcoord.first, blacs_h.npcols, pcoord.second,
+                                major);
+}
+
 template <typename T1, typename T2>
 void get_local_mat(matrix<T1> &mat_lo, const matrix<T2> &mat_go, const ArrayDesc &ad)
 {
@@ -863,3 +905,4 @@ void get_local_mat(matrix<T1> &mat_lo, const matrix<T2> &mat_go, const ArrayDesc
         }
     }
 }
+
