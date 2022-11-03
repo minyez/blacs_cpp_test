@@ -161,12 +161,23 @@ int ArrayDesc::init(const int &m, const int &n, const int &mb, const int &nb, co
     int info;
 #ifdef __MPI__
     m_local_ = linalg::numroc(m, mb, myprow_, irsrc, nprows_);
+    // leading dimension is always max(1, numroc)
+    lld_ = std::max(m_local_, 1);
     n_local_ = linalg::numroc(n, nb, mypcol_, icsrc, npcols_);
-    linalg::descinit(this->desc, m, n, mb, nb, irsrc, icsrc, ictxt_, m_local_, info);
+    // create a dummy matrix of size 1, such that pointer c is not nullptr
+    // this is VERY IMPORTANT when calling scalapack with small matrix for many processors
+    if (m_local_ < 1 || n_local_ < 1)
+    {
+        gen_dummy_matrix_ = true;
+        m_local_ = 1;
+        n_local_ = 1;
+    }
+
+    linalg::descinit(this->desc, m, n, mb, nb, irsrc, icsrc, ictxt_, lld_, info);
     if (info)
         printf("ERROR DESCINIT! PROC %d (%d,%d) PARAMS: DESC %d %d %d %d %d %d %d %d\n", myid_, myprow_, mypcol_, m, n, mb, nb, irsrc, icsrc, ictxt_, m_local_);
-    else
-        printf("SUCCE DESCINIT! PROC %d (%d,%d) PARAMS: DESC %d %d %d %d %d %d %d %d\n", myid_, myprow_, mypcol_, m, n, mb, nb, irsrc, icsrc, ictxt_, m_local_);
+    // else
+    //     printf("SUCCE DESCINIT! PROC %d (%d,%d) PARAMS: DESC %d %d %d %d %d %d %d %d\n", myid_, myprow_, mypcol_, m, n, mb, nb, irsrc, icsrc, ictxt_, m_local_);
     m_ = desc[2];
     n_ = desc[3];
     mb_ = desc[4];
@@ -221,6 +232,7 @@ std::string ArrayDesc::info() const
          + "ID " + std::to_string(myid_) + " "
          + "PCOOR (" + std::to_string(myprow_) + "," + std::to_string(mypcol_) + ") "
          + "GSIZE (" + std::to_string(m_) + "," + std::to_string(n_) + ") "
-         + "LSIZE (" + std::to_string(m_local_) + "," + std::to_string(n_local_) + ")";
+         + "LSIZE (" + std::to_string(m_local_) + "," + std::to_string(n_local_) + ") "
+         + "DUMMY? " + std::string(gen_dummy_matrix_? "T" : "F");
     return info;
 }

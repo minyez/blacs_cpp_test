@@ -53,6 +53,9 @@ private:
     int m_local_;
     int n_local_;
 
+    //! flag to indicate that the current process should contain no data of local matrix, but for scalapack routines, it will generate a dummy matrix of size 1, nrows = ncols = 1
+    bool gen_dummy_matrix_ = false;
+
     //! flag for initialization
     bool initialized_ = false;
 public:
