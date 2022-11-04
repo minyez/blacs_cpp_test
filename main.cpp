@@ -63,17 +63,6 @@ int main (int argc, char *argv[])
     linalg::pgemr2d_f(k, n, mat2.c, 1, 1, mat2_block_desc.desc,
                       mat2_local.c, 1, 1, mat2_desc.desc, blacs_h.ictxt);
 
-    // const char transn = 'N';
-    // double alpha = 1.0, beta = 0.0;
-    // int i1 = 1;
-    // int desc1[9], desc2[9], desc3[9];
-    // for row-major matrices
-    // linalg::descinit(desc2, n, k, nb, mb, IRSRC, ICSRC, blacs_h.ictxt, mat2_local.nc(), info);
-    // linalg::descinit(desc1, k, m, kb, mb, IRSRC, ICSRC, blacs_h.ictxt, mat1_local.nc(), info);
-    // linalg::descinit(desc3, n, m, nb, mb, IRSRC, ICSRC, blacs_h.ictxt, mat3_local.nc(), info);
-    // pdgemm_(&transn, &transn, &n, &m, &k, &alpha, mat2_local.c, &i1, &i1, desc2,
-    //         mat1_local.c, &i1, &i1, desc1, &beta, mat3_local.c, &i1, &i1, desc3);
-
     linalg::pgemm_f('N', 'N', m, n, k, 1.0, mat1_local.c, 1, 1, mat1_desc.desc,
                     mat2_local.c, 1, 1, mat2_desc.desc, 0.0, prod_local.c, 1, 1, prod_desc.desc);
     printf("prod_local on %s\n%s", prod_desc.info().c_str(), str(prod_local).c_str());
