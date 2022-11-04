@@ -241,7 +241,7 @@ public:
 
     void operator+=(const matrix<T> &m)
     {
-        assert(size() == m.size());
+        assert(size() == m.size() && major() == m.major());
         for (int i = 0; i < size(); i++)
             c[i] += m.c[i];
     }
@@ -294,7 +294,7 @@ public:
 
     void operator-=(const matrix<T> &m)
     {
-        assert(size() == m.size());
+        assert(size() == m.size() && major() == m.major());
         for (int i = 0; i < size(); i++)
             c[i] -= m.c[i];
     }
@@ -350,6 +350,36 @@ public:
         size_ = nr_ * nc_;
         zero_out();
     }
+
+    void resize(int nrows_new, int ncols_new, MAJOR major)
+    {
+        const int size_new = nrows_new * ncols_new;
+        if (size_new)
+        {
+            if (c)
+            {
+                if ( size_new != size() )
+                {
+                    delete [] c;
+                    c = new T[size_new];
+                }
+            }
+            else
+                c = new T[size_new];
+        }
+        else
+        {
+            if(c) delete [] c;
+            c = nullptr;
+        }
+        nr_ = nrows_new;
+        nc_ = ncols_new;
+        mrank_ = std::min(nr_, nc_);
+        major_ = major;
+        size_ = nr_ * nc_;
+        zero_out();
+    }
+
     void conj() {};
 
     void transpose(bool conjugate = false, bool onsite_when_square_mat = true)
@@ -507,10 +537,21 @@ template <typename T>
 inline matrix<T> operator*(const matrix<T> &m1, const matrix<T> &m2)
 {
     assert(m1.nc() == m2.nr());
+    assert(m1.major() == m2.major());
 
-    matrix<T> prod(m1.nr(), m2.nc());
-    linalg::gemm('N', 'N', m1.nr(), m2.nc(), m1.nc(),
-                 1.0, m1.c, m1.nc(), m2.c, m2.nc(), 0.0, prod.c, prod.nc());
+    auto major = m1.major();
+
+    matrix<T> prod(m1.nr(), m2.nc(), major);
+    if (m1.is_row_major())
+    {
+        linalg::gemm('N', 'N', m1.nr(), m2.nc(), m1.nc(),
+                     1.0, m1.c, m1.nc(), m2.c, m2.nc(), 0.0, prod.c, prod.nc());
+    }
+    else
+    {
+        linalg::gemm_f('N', 'N', m1.nr(), m2.nc(), m1.nc(),
+                       1.0, m1.c, m1.nr(), m2.c, m2.nr(), 0.0, prod.c, prod.nr());
+    }
 
     return prod;
 }
@@ -533,7 +574,10 @@ inline vec<T> operator*(const matrix<T> &m, const vec<T> &v)
 {
     assert(m.nc() == v.n);
     vec<T> mv(m.nr());
-    linalg::gemv('N', m.nr(), m.nc(), 1.0, m.c, m.nc(), v.c, 1, 0.0, mv.c, 1);
+    if (m.is_row_major())
+        linalg::gemv('N', m.nr(), m.nc(), 1.0, m.c, m.nc(), v.c, 1, 0.0, mv.c, 1);
+    else
+        linalg::gemv_f('N', m.nr(), m.nc(), 1.0, m.c, m.nr(), v.c, 1, 0.0, mv.c, 1);
     return mv;
 }
 
@@ -543,7 +587,10 @@ inline vec<T> operator*(const vec<T> &v, const matrix<T> &m)
     assert(m.nr() == v.n);
     vec<T> mv(m.nc());
     /* linalg::gemv('N', ); */
-    linalg::gemv('T', m.nr(), m.nc(), 1.0, m.c, m.nc(), v.c, 1, 0.0, mv.c, 1);
+    if (m.is_row_major())
+        linalg::gemv('T', m.nr(), m.nc(), 1.0, m.c, m.nc(), v.c, 1, 0.0, mv.c, 1);
+    else
+        linalg::gemv('T', m.nr(), m.nc(), 1.0, m.c, m.nr(), v.c, 1, 0.0, mv.c, 1);
     return mv;
 }
 
@@ -616,6 +663,7 @@ inline matrix<T> inverse(const matrix<T> &m)
 template <typename T>
 void inverse(const matrix<T> &m, matrix<T> &m_inv)
 {
+    assert(m.major() == m_inv.major());
     int lwork = m.nr();
     int info = 0;
     T work[lwork];
@@ -624,8 +672,16 @@ void inverse(const matrix<T> &m, matrix<T> &m_inv)
     copy(m, m_inv);
     // debug
     // std::cout << m_inv.size() << " " << m_inv(0, 0) << " " << m_inv(m.nr-1, m.nc-1) << std::endl;
-    linalg::getrf(m_inv.nr(), m_inv.nc(), m_inv.c, m_inv.nc(), ipiv, info);
-    linalg::getri(m_inv.nr(), m_inv.c, m_inv.nc(), ipiv, work, lwork, info);
+    if (m.is_row_major())
+    {
+        linalg::getrf(m_inv.nr(), m_inv.nc(), m_inv.c, m_inv.nc(), ipiv, info);
+        linalg::getri(m_inv.nr(), m_inv.c, m_inv.nc(), ipiv, work, lwork, info);
+    }
+    else
+    {
+        linalg::getrf_f(m_inv.nr(), m_inv.nc(), m_inv.c, m_inv.nr(), ipiv, info);
+        linalg::getri_f(m_inv.nr(), m_inv.c, m_inv.nr(), ipiv, work, lwork, info);
+    }
     m_inv.reshape(m_inv.nc(), m_inv.nr());
 }
 
@@ -685,12 +741,15 @@ T get_determinant(matrix<T> &m)
     T work[lwork];
     int ipiv[mrank];
     // debug
-    linalg::getrf(m.nr(), m.nc(), m.c, m.nc(), ipiv, info);
+    if (m.is_row_major())
+        linalg::getrf(m.nr(), m.nc(), m.c, m.nc(), ipiv, info);
+    else
+        linalg::getrf_f(m.nr(), m.nc(), m.c, m.nr(), ipiv, info);
     T det = 1;
     for (int i = 0; i < mrank; i++)
     {
         /* std::cout << i << " " << ipiv[i] << " " << m.c[i*m.nc+i] << " "; */
-        det *= (2*int(ipiv[i] == (i+1))-1) * m.c[i*m.nc()+i];
+        det *= (2*int(ipiv[i] == (i+1))-1) * m(i, i);
     }
     return det;
 }

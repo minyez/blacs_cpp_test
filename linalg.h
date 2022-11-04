@@ -25,7 +25,7 @@ namespace linalg
                 throw std::invalid_argument("invalid trans character");
         }
     }
-    
+
     static inline char revert_uplo(const char &uplo)
     {
         switch (uplo) {
@@ -97,7 +97,7 @@ namespace linalg
             for (int j = 0; j < lda; j++)
                 a[j*n+i] = a_fort[i*lda+j];
     }
-    
+
     template <>
     inline void transpose(const std::complex<double>* a_fort, std::complex<double>* a, const int &n, const int &lda, bool conjugate)
     {
@@ -130,7 +130,7 @@ namespace linalg
         zdotu_(&res, &N, X, &incX, Y, &incY);
         return res;
     }
-    
+
     inline std::complex<float> dotc(const int &N, const std::complex<float> *X, const int &incX,
                                const std::complex<float> *Y, const int &incY)
     {
@@ -153,26 +153,54 @@ namespace linalg
     {
         sgemm_(&transb, &transa, &n, &m, &k, &alpha, b, &ldb, a, &lda, &beta, c, &ldc);
     }
-    
+
     inline void gemm(const char &transa, const char &transb, const int &m, const int &n,
                      const int &k, const double &alpha, const double *a, const int &lda,
                      const double *b, const int &ldb, const double &beta, double *c, const int &ldc)
     {
         dgemm_(&transb, &transa, &n, &m, &k, &alpha, b, &ldb, a, &lda, &beta, c, &ldc);
     }
-    
+
     inline void gemm(const char &transa, const char &transb, const int &m, const int &n,
                      const int &k, const std::complex<float> &alpha, const std::complex<float> *a, const int &lda,
                      const std::complex<float> *b, const int &ldb, const std::complex<float> &beta, std::complex<float> *c, const int &ldc)
     {
         cgemm_(&transb, &transa, &n, &m, &k, &alpha, b, &ldb, a, &lda, &beta, c, &ldc);
     }
-    
+
     inline void gemm(const char &transa, const char &transb, const int &m, const int &n,
                      const int &k, const std::complex<double> &alpha, const std::complex<double> *a, const int &lda,
                      const std::complex<double> *b, const int &ldb, const std::complex<double> &beta, std::complex<double> *c, const int &ldc)
     {
         zgemm_(&transb, &transa, &n, &m, &k, &alpha, b, &ldb, a, &lda, &beta, c, &ldc);
+    }
+
+    inline void gemm_f(const char &transa, const char &transb, const int &m, const int &n,
+                       const int &k, const float &alpha, const float *a, const int &lda,
+                       const float *b, const int &ldb, const float &beta, float *c, const int &ldc)
+    {
+        sgemm_(&transa, &transb, &m, &n, &k, &alpha, a, &lda, b, &ldb, &beta, c, &ldc);
+    }
+
+    inline void gemm_f(const char &transa, const char &transb, const int &m, const int &n,
+                       const int &k, const double &alpha, const double *a, const int &lda,
+                       const double *b, const int &ldb, const double &beta, double *c, const int &ldc)
+    {
+        dgemm_(&transa, &transb, &m, &n, &k, &alpha, a, &lda, b, &ldb, &beta, c, &ldc);
+    }
+
+    inline void gemm_f(const char &transa, const char &transb, const int &m, const int &n,
+                       const int &k, const std::complex<float> &alpha, const std::complex<float> *a, const int &lda,
+                       const std::complex<float> *b, const int &ldb, const std::complex<float> &beta, std::complex<float> *c, const int &ldc)
+    {
+        cgemm_(&transa, &transb, &m, &n, &k, &alpha, a, &lda, b, &ldb, &beta, c, &ldc);
+    }
+
+    inline void gemm_f(const char &transa, const char &transb, const int &m, const int &n,
+                       const int &k, const std::complex<double> &alpha, const std::complex<double> *a, const int &lda,
+                       const std::complex<double> *b, const int &ldb, const std::complex<double> &beta, std::complex<double> *c, const int &ldc)
+    {
+        zgemm_(&transa, &transb, &m, &n, &k, &alpha, a, &lda, b, &ldb, &beta, c, &ldc);
     }
 
     inline void gemv(const char &transa, const int &m, const int &n,
@@ -182,7 +210,7 @@ namespace linalg
         char transa_f = revert_trans(transa);
         sgemv_(&transa_f, &n, &m, &alpha, a, &lda, x, &incx, &beta, y, &incy);
     }
-    
+
     inline void gemv(const char &transa, const int &m, const int &n,
                      const double &alpha, const double *a, const int &lda,
                      const double *x, const int &incx, const double &beta, double *y, const int &incy)
@@ -190,7 +218,7 @@ namespace linalg
         char transa_f = revert_trans(transa);
         dgemv_(&transa_f, &n, &m, &alpha, a, &lda, x, &incx, &beta, y, &incy);
     }
-    
+
     inline void gemv(const char &transa, const int &m, const int &n,
                      const std::complex<float> &alpha, const std::complex<float> *a, const int &lda,
                      const std::complex<float> *x, const int &incx, const std::complex<float> &beta, std::complex<float> *y, const int &incy)
@@ -198,7 +226,7 @@ namespace linalg
         char transa_f = revert_trans(transa);
         cgemv_(&transa_f, &n, &m, &alpha, a, &lda, x, &incx, &beta, y, &incy);
     }
-    
+
     inline void gemv(const char &transa, const int &m, const int &n,
                      const std::complex<double> &alpha, const std::complex<double> *a, const int &lda,
                      const std::complex<double> *x, const int &incx, const std::complex<double> &beta, std::complex<double> *y, const int &incy)
@@ -206,7 +234,36 @@ namespace linalg
         char transa_f = revert_trans(transa);
         zgemv_(&transa_f, &n, &m, &alpha, a, &lda, x, &incx, &beta, y, &incy);
     }
-    
+
+
+    inline void gemv_f(const char &transa, const int &m, const int &n,
+                       const float &alpha, const float *a, const int &lda,
+                       const float *x, const int &incx, const float &beta, float *y, const int &incy)
+    {
+        sgemv_(&transa, &m, &n, &alpha, a, &lda, x, &incx, &beta, y, &incy);
+    }
+
+    inline void gemv_f(const char &transa, const int &m, const int &n,
+                       const double &alpha, const double *a, const int &lda,
+                       const double *x, const int &incx, const double &beta, double *y, const int &incy)
+    {
+        dgemv_(&transa, &m, &n, &alpha, a, &lda, x, &incx, &beta, y, &incy);
+    }
+
+    inline void gemv_f(const char &transa, const int &m, const int &n,
+                       const std::complex<float> &alpha, const std::complex<float> *a, const int &lda,
+                       const std::complex<float> *x, const int &incx, const std::complex<float> &beta, std::complex<float> *y, const int &incy)
+    {
+        cgemv_(&transa, &m, &n, &alpha, a, &lda, x, &incx, &beta, y, &incy);
+    }
+
+    inline void gemv_f(const char &transa, const int &m, const int &n,
+                       const std::complex<double> &alpha, const std::complex<double> *a, const int &lda,
+                       const std::complex<double> *x, const int &incx, const std::complex<double> &beta, std::complex<double> *y, const int &incy)
+    {
+        zgemv_(&transa, &m, &n, &alpha, a, &lda, x, &incx, &beta, y, &incy);
+    }
+
     inline void getrf(const int &m, const int &n, float *A, const int &lda, int *ipiv, int &info)
     {
         float *a_fort = transpose(A, n, lda);
@@ -214,7 +271,7 @@ namespace linalg
         transpose(a_fort, A, n, lda);
         delete [] a_fort;
     }
-    
+
     inline void getrf(const int &m, const int &n, double *A, const int &lda, int *ipiv, int &info)
     {
         double *a_fort = transpose(A, n, lda);
@@ -222,7 +279,7 @@ namespace linalg
         transpose(a_fort, A, n, lda);
         delete [] a_fort;
     }
-    
+
     inline void getrf(const int &m, const int &n, std::complex<float> *A, const int &lda, int *ipiv, int &info)
     {
         std::complex<float> *a_fort = transpose(A, n, lda);
@@ -230,13 +287,33 @@ namespace linalg
         transpose(a_fort, A, n, lda);
         delete [] a_fort;
     }
-    
+
     inline void getrf(const int &m, const int &n, std::complex<double> *A, const int &lda, int *ipiv, int &info)
     {
         std::complex<double> *a_fort = transpose(A, n, lda);
         zgetrf_(&m, &n, a_fort, &lda, ipiv, &info);
         transpose(a_fort, A, n, lda);
         delete [] a_fort;
+    }
+
+    inline void getrf_f(const int &m, const int &n, float *A, const int &lda, int *ipiv, int &info)
+    {
+        sgetrf_(&m, &n, A, &lda, ipiv, &info);
+    }
+
+    inline void getrf_f(const int &m, const int &n, double *A, const int &lda, int *ipiv, int &info)
+    {
+        dgetrf_(&m, &n, A, &lda, ipiv, &info);
+    }
+
+    inline void getrf_f(const int &m, const int &n, std::complex<float> *A, const int &lda, int *ipiv, int &info)
+    {
+        cgetrf_(&m, &n, A, &lda, ipiv, &info);
+    }
+
+    inline void getrf_f(const int &m, const int &n, std::complex<double> *A, const int &lda, int *ipiv, int &info)
+    {
+        zgetrf_(&m, &n, A, &lda, ipiv, &info);
     }
 
     inline void getri(const int &n, float *A, const int &lda, int *ipiv, float *work, const int &lwork, int &info)
@@ -246,7 +323,7 @@ namespace linalg
         transpose(a_fort, A, n, lda);
         delete [] a_fort;
     }
-    
+
     inline void getri(const int &n, double *A, const int &lda, int *ipiv, double *work, const int &lwork, int &info)
     {
         double *a_fort = transpose(A, n, lda);
@@ -254,7 +331,7 @@ namespace linalg
         transpose(a_fort, A, n, lda);
         delete [] a_fort;
     }
-    
+
     inline void getri(const int &n, std::complex<float> *A, const int &lda, int *ipiv, std::complex<float> *work, const int &lwork, int &info)
     {
         std::complex<float> *a_fort = transpose(A, n, lda);
@@ -262,7 +339,7 @@ namespace linalg
         transpose(a_fort, A, n, lda);
         delete [] a_fort;
     }
-    
+
     inline void getri(const int &n, std::complex<double> *A, const int &lda, int *ipiv, std::complex<double> *work, const int &lwork, int &info)
     {
         std::complex<double> *a_fort = transpose(A, n, lda);
@@ -270,6 +347,28 @@ namespace linalg
         transpose(a_fort, A, n, lda);
         delete [] a_fort;
     }
+
+    inline void getri_f(const int &n, float *A, const int &lda, int *ipiv, float *work, const int &lwork, int &info)
+    {
+        sgetri_(&n, A, &lda, ipiv, work, &lwork, &info);
+    }
+
+    inline void getri_f(const int &n, double *A, const int &lda, int *ipiv, double *work, const int &lwork, int &info)
+    {
+        dgetri_(&n, A, &lda, ipiv, work, &lwork, &info);
+    }
+
+    inline void getri_f(const int &n, std::complex<float> *A, const int &lda, int *ipiv, std::complex<float> *work, const int &lwork, int &info)
+    {
+        cgetri_(&n, A, &lda, ipiv, work, &lwork, &info);
+    }
+
+    inline void getri_f(const int &n, std::complex<double> *A, const int &lda, int *ipiv, std::complex<double> *work, const int &lwork, int &info)
+    {
+        zgetri_(&n, A, &lda, ipiv, work, &lwork, &info);
+    }
+
+    /* BLACS/ScaLAPACK wrappers */
 
     // suffix _f indicates the IO matrices stored in memory in fortran format, i.e. column-major
     inline
@@ -373,5 +472,41 @@ namespace linalg
                   const int ictxt, const int lld, int &info)
     {
         descinit_(desc, &m, &n, &mb, &nb, &irsrc, &icsrc, &ictxt, &lld, &info);
+    }
+
+    inline
+    void pgemr2d_f(const int m, const int n,
+                   const float *a, const int ia, const int ja, const int *desca,
+                   float *b, const int ib, const int jb, const int *descb,
+                   const int ictxt)
+    {
+        psgemr2d_(&m, &n, a, &ia, &ja, desca, b, &ib, &jb, descb, &ictxt);
+    }
+
+    inline
+    void pgemr2d_f(const int m, const int n,
+                   const double *a, const int ia, const int ja, const int *desca,
+                   double *b, const int ib, const int jb, const int *descb,
+                   const int ictxt)
+    {
+        pdgemr2d_(&m, &n, a, &ia, &ja, desca, b, &ib, &jb, descb, &ictxt);
+    }
+
+    inline
+    void pgemr2d_f(const int m, const int n,
+                   const std::complex<float> *a, const int ia, const int ja, const int *desca,
+                   std::complex<float> *b, const int ib, const int jb, const int *descb,
+                   const int ictxt)
+    {
+        pcgemr2d_(&m, &n, a, &ia, &ja, desca, b, &ib, &jb, descb, &ictxt);
+    }
+
+    inline
+    void pgemr2d_f(const int m, const int n,
+                   const std::complex<double> *a, const int ia, const int ja, const int *desca,
+                   std::complex<double> *b, const int ib, const int jb, const int *descb,
+                   const int ictxt)
+    {
+        pzgemr2d_(&m, &n, a, &ia, &ja, desca, b, &ib, &jb, descb, &ictxt);
     }
 } /* namespace linalg */
