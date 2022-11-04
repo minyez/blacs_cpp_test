@@ -42,3 +42,12 @@ template <typename T>
 struct to_cplx { using type = std::complex<T>; };
 template <typename T>
 struct to_cplx<std::complex<T>> { using type = T; };
+
+template <typename T>
+inline T get_real(const T& v) { return v; }
+template <typename T>
+inline T get_real(const std::complex<T>& v) { return v.real(); }
+template <typename T>
+inline T get_imag(const T& v) { return T(0); }
+template <typename T>
+inline T get_imag(const std::complex<T>& v) { return v.imag(); }

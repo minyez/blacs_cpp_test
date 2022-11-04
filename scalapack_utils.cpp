@@ -48,6 +48,13 @@ int local_index(int gindex, int n, int nb, int nprc, int myprc)
     return myprc == inproc? int(gindex / (nb*nprc))*nb + gindex % nb : -1;
 }
 
+int optimal_blocksize(int n, int nprc)
+{
+    // the optimal blocksize 
+    int nb = 1;
+    return nb;
+}
+
 BLACS_handler::BLACS_handler(int comm_in, const char &layout_in, bool greater_nprows): MPI_handler(comm_in)
 {
     layout = layout_in;

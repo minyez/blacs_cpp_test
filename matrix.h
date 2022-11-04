@@ -74,7 +74,7 @@ public:
         }
         zero_out();
         // do not manually check out of bound
-        // data are copied from valarr as it is, instead of which major one chooses
+        // data are copied from valarr as it is, despite the major
         for (int i = 0; i < size(); i++)
             c[i] = valarr[i];
     }
@@ -432,6 +432,22 @@ public:
         matrix<cplx_t> m(nr_, nc_, major_);
         for (int i = 0; i < size_; i++)
             m.c[i] = c[i];
+        return m;
+    }
+
+    matrix<real_t> get_real()
+    {
+        matrix<real_t> m(nr_, nc_, major_);
+        for (int i = 0; i < size_; i++)
+            m.c[i] = get_real(c[i]);
+        return m;
+    }
+
+    matrix<real_t> get_imag()
+    {
+        matrix<real_t> m(nr_, nc_, major_);
+        for (int i = 0; i < size_; i++)
+            m.c[i] = get_imag(c[i]);
         return m;
     }
 };
@@ -821,7 +837,7 @@ std::string str(const matrix<std::complex<T>> &m)
 }
 
 template <typename T>
-matrix<T> random(int nr, int nc, const T &lb, const T &ub)
+inline matrix<T> random(int nr, int nc, const T &lb, const T &ub)
 {
     matrix<T> m(nr, nc);
     std::default_random_engine e(time(0));
@@ -831,7 +847,7 @@ matrix<T> random(int nr, int nc, const T &lb, const T &ub)
 }
 
 template <typename T>
-matrix<std::complex<T>> random(int nr, int nc, const std::complex<T> &lb, const std::complex<T> &ub)
+inline matrix<std::complex<T>> random(int nr, int nc, const std::complex<T> &lb, const std::complex<T> &ub)
 {
     matrix<std::complex<T>> m(nr, nc);
     std::default_random_engine e(time(0));
@@ -841,7 +857,7 @@ matrix<std::complex<T>> random(int nr, int nc, const std::complex<T> &lb, const 
 }
 
 template <typename T>
-matrix<T> random_sy(int n, const T &lb, const T &ub)
+inline matrix<T> random_sy(int n, const T &lb, const T &ub)
 {
     matrix<T> m(n, n);
     std::default_random_engine e(time(0));
@@ -857,7 +873,7 @@ matrix<T> random_sy(int n, const T &lb, const T &ub)
 }
 
 template <typename T>
-matrix<std::complex<T>> random_he(int n, const std::complex<T> &lb, const std::complex<T> &ub)
+inline matrix<std::complex<T>> random_he(int n, const std::complex<T> &lb, const std::complex<T> &ub)
 {
     matrix<std::complex<T>> m(n, n);
     std::default_random_engine e(time(0));
@@ -878,14 +894,14 @@ matrix<std::complex<T>> random_he(int n, const std::complex<T> &lb, const std::c
 /* ========================== */
 
 template <typename T>
-matrix<T> init_local_mat(const ArrayDesc &ad, MAJOR major)
+inline matrix<T> init_local_mat(const ArrayDesc &ad, MAJOR major)
 {
     matrix<T> mat_lo(ad.num_r(), ad.num_c(), major);
     return mat_lo;
 }
 
 template <typename T>
-matrix<T> get_local_mat(const matrix<T> &mat_go, const ArrayDesc &ad, MAJOR major)
+inline matrix<T> get_local_mat(const matrix<T> &mat_go, const ArrayDesc &ad, MAJOR major)
 {
     // assert the shape of matrix conforms with the array descriptor
     assert(mat_go.nr() == ad.m() && mat_go.nc() == ad.n());
@@ -906,12 +922,12 @@ matrix<T> get_local_mat(const matrix<T> &mat_go, const ArrayDesc &ad, MAJOR majo
 }
 
 template <typename T>
-matrix<T> get_local_mat_pcoord(const matrix<T> &mat_go,
-                               const int &mb, const int &nb,
-                               const int &irsrc, const int &icsrc,
-                               const int &nprows, const int &myprow,
-                               const int &npcols, const int &mypcol,
-                               MAJOR major)
+inline matrix<T> get_local_mat_pcoord(const matrix<T> &mat_go,
+                                      const int &mb, const int &nb,
+                                      const int &irsrc, const int &icsrc,
+                                      const int &nprows, const int &myprow,
+                                      const int &npcols, const int &mypcol,
+                                      MAJOR major)
 {
     int m = mat_go.nr(), n = mat_go.nc();
     int m_local = linalg::numroc(m, mb, myprow, irsrc, nprows);
@@ -933,11 +949,11 @@ matrix<T> get_local_mat_pcoord(const matrix<T> &mat_go,
 
 //! wrapper of the above template, using process grid and layout of BLACS_handler
 template <typename T>
-matrix<T> get_local_mat_pid(const matrix<T> &mat_go,
-                            const int &mb, const int &nb,
-                            const int &irsrc, const int &icsrc,
-                            const BLACS_handler &blacs_h, const int &pid,
-                            MAJOR major)
+inline matrix<T> get_local_mat_pid(const matrix<T> &mat_go,
+                                   const int &mb, const int &nb,
+                                   const int &irsrc, const int &icsrc,
+                                   const BLACS_handler &blacs_h, const int &pid,
+                                   MAJOR major)
 {
     auto pcoord = get_pcoord_from_pid(pid, blacs_h.nprows, blacs_h.npcols, blacs_h.layout);
     return get_local_mat_pcoord(mat_go, mb, nb, irsrc, icsrc,

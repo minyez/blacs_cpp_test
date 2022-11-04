@@ -7,8 +7,11 @@
 std::vector<std::pair<int, int>> get_all_pcoords(int nprows, int npcols);
 std::pair<int, int> get_pcoord_from_pid(int pid, int nprows, int npcols, char layout);
 int get_pid_from_pcoord(int nprows, int prow, int npcols, int pcol, char layout);
+
 int global_index(int lindex, int n, int nb, int nprc, int myprc);
 int local_index(int gindex, int n, int nb, int nprc, int myprc);
+
+int optimal_blocksize(int n, int nprc);
 
 class BLACS_handler: public MPI_handler
 {
