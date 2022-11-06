@@ -86,7 +86,7 @@ public:
             c[i] = valarr[i];
     }
 
-    matrix(const matrix &m): nr_(m.nr_), nc_(m.nc_), major_(m.major_), c(nullptr)
+    matrix(const matrix<T> &m): nr_(m.nr_), nc_(m.nc_), major_(m.major_), c(nullptr)
     {
         if( nr_ && nc_ )
         {
@@ -96,6 +96,7 @@ public:
             memcpy(c, m.c, nr_*nc_*sizeof(T));
         }
     }
+
     matrix(matrix &&m) : nr_(m.nr_), nc_(m.nc_), major_(m.major_)
     {
         c = m.c;
@@ -193,9 +194,8 @@ public:
     };
 
     // major independent matrix index
-    T &operator()(const int ir, const int ic) { return this->at(ir, ic); }
+    T &operator()(const int ir, const int ic) { return c[flatid(nr_, ir, nc_, ic, is_row_major())]; }
     const T &operator()(const int ir, const int ic) const { return this->at(ir, ic); }
-    T &at(const int ir, const int ic) { return c[flatid(nr_, ir, nc_, ic, is_row_major())]; }
     const T &at(const int ir, const int ic) const { return c[flatid(nr_, ir, nc_, ic, is_row_major())]; }
 
     matrix<T> & operator=(const matrix<T> &m)
@@ -241,76 +241,99 @@ public:
         return *this;
     }
 
-    void operator+=(const matrix<T> &m)
+    template <typename T1>
+    void operator+=(const matrix<T1> &m)
     {
         assert(size() == m.size() && major() == m.major());
         for (int i = 0; i < size(); i++)
             c[i] += m.c[i];
     }
 
-    void add_col(const std::vector<T> &v)
+    template <typename T1>
+    void add_col(const std::vector<T1> &v)
     {
         assert(nr_ == v.size());
         for (int ir = 0; ir < nr_; ir++)
             for (int ic = 0; ic < nc_; ic++)
-                c[ir*nc_+ic] += v[ir];
+                this->at(ir, ic) += v[ir];
     }
 
-    void operator+=(const std::vector<T> &v)
+    template <typename T1>
+    void operator+=(const std::vector<T1> &v)
     {
         assert(nc_ == v.size());
         for (int i = 0; i < nr_; i++)
             for (int ic = 0; ic < nc_; ic++)
-                c[i*nc_+ic] += v[ic];
+                this->at(i, ic) += v[ic];
     }
 
-    void operator+=(const vec<T> &v)
+    template <typename T1>
+    void add_row(const std::vector<T1> &v)
+    {
+        *this += v;
+    }
+
+    template <typename T1>
+    void operator+=(const vec<T1> &v)
     {
         assert(nc_ == v.size());
         for (int i = 0; i < nr_; i++)
             for (int ic = 1; ic < nc_; ic++)
-                c[i*nc_+ic] += v.c[ic];
+                this->at(i, ic) += v[ic];
     }
 
-    void operator-=(const std::vector<T> &v)
+    template <typename T1>
+    void add_row(const vec<T1> &v)
+    {
+        *this += v;
+    }
+
+    template <typename T1>
+    void operator-=(const std::vector<T1> &v)
     {
         assert(nc_ == v.size());
         for (int i = 0; i < nr_; i++)
             for (int ic = 1; ic < nc_; ic++)
-                c[i*nc_+ic] -= v[ic];
+                this->at(i, ic) += v[ic];
     }
 
-    void operator-=(const vec<T> &v)
+    template <typename T1>
+    void operator-=(const vec<T1> &v)
     {
         assert(nc_ == v.size());
         for (int i = 0; i < nr_; i++)
             for (int ic = 1; ic < nc_; ic++)
-                c[i*nc_+ic] -= v.c[ic];
+                this->at(i, ic) += v[ic];
     }
 
-    void operator+=(const T &cnum)
+    template <typename T1>
+    void operator+=(const T1 &cnum)
     {
         for (int i = 0; i < size(); i++)
             c[i] += cnum;
     }
 
-    void operator-=(const matrix<T> &m)
+    template <typename T1>
+    void operator-=(const matrix<T1> &m)
     {
         assert(size() == m.size() && major() == m.major());
         for (int i = 0; i < size(); i++)
             c[i] -= m.c[i];
     }
-    void operator-=(const T &cnum)
+    template <typename T1>
+    void operator-=(const T1 &cnum)
     {
         for (int i = 0; i < size(); i++)
             c[i] -= cnum;
     }
-    void operator*=(const T &cnum)
+    template <typename T1>
+    void operator*=(const T1 &cnum)
     {
         for (int i = 0; i < size(); i++)
             c[i] *= cnum;
     }
-    void operator/=(const T &cnum)
+    template <typename T1>
+    void operator/=(const T1 &cnum)
     {
         assert(fabs(cnum) > 0);
         for (int i = 0; i < size(); i++)
@@ -355,34 +378,16 @@ public:
 
     void resize(int nrows_new, int ncols_new, MAJOR major)
     {
-        const int size_new = nrows_new * ncols_new;
-        if (size_new)
-        {
-            if (c)
-            {
-                if ( size_new != size() )
-                {
-                    delete [] c;
-                    c = new T[size_new];
-                }
-            }
-            else
-                c = new T[size_new];
-        }
-        else
-        {
-            if(c) delete [] c;
-            c = nullptr;
-        }
-        nr_ = nrows_new;
-        nc_ = ncols_new;
-        mrank_ = std::min(nr_, nc_);
+        this->resize(nrows_new, ncols_new);
         major_ = major;
-        size_ = nr_ * nc_;
-        zero_out();
     }
 
-    void conj() {};
+    void conj()
+    {
+        if (!is_complex()) return;
+        for (int i = 0; i < this->size(); i++)
+            this->c[i] = get_conj(this->c[i]);
+    };
 
     void transpose(bool conjugate = false, bool onsite_when_square_mat = true)
     {
@@ -454,18 +459,6 @@ public:
     }
 };
 
-template <> inline void matrix<std::complex<float>>::conj()
-{
-    for (int i = 0; i < size(); i++)
-        c[i] = std::conj(c[i]);
-}
-
-template <> inline void matrix<std::complex<double>>::conj()
-{
-    for (int i = 0; i < size(); i++)
-        c[i] = std::conj(c[i]);
-}
-
 template <typename T1, typename T2>
 inline bool same_major(const matrix<T1> &m1, const matrix<T2> &m2)
 {
@@ -487,66 +480,73 @@ void copy(const matrix<T1> &src, matrix<T2> &dest)
 }
 
 template <typename T>
-matrix<T> operator+(const matrix<T> &m1, const matrix<T> &m2)
+void copy(const matrix<T> &src, matrix<T> &dest)
+{
+    assert(src.size() == dest.size() && same_major(src, dest));
+    memcpy(dest.c, src.c, src.size() * sizeof(T));
+}
+
+template <typename T1, typename T2>
+matrix<T1> operator+(const matrix<T1> &m1, const matrix<T2> &m2)
 {
     assert(m1.nc() == m2.nc() && m1.nr() == m2.nr() && same_major(m1, m2));
-    matrix<T> sum = m1;
+    matrix<T1> sum = m1;
     sum += m2;
     return sum;
 }
 
-template <typename T>
-inline matrix<T> operator+(const matrix<T> &m, const std::vector<T> &v)
+template <typename T1, typename T2>
+inline matrix<T1> operator+(const matrix<T1> &m, const std::vector<T2> &v)
 {
     assert(m.nc() == v.size());
-    matrix<T> mnew(m);
+    matrix<T1> mnew = m;
     mnew += v;
     return mnew;
 }
 
-template <typename T>
-inline matrix<T> operator+(const matrix<T> &m, const T &cnum)
+template <typename T, typename T2>
+inline matrix<T> operator+(const matrix<T> &m, const T2 &cnum)
 {
     matrix<T> sum = m;
     sum += cnum;
     return sum;
 }
 
-template <typename T>
-inline matrix<T> operator+(const T &cnum, const matrix<T> &m)
+template <typename T1, typename T2>
+inline matrix<T2> operator+(const T1 &cnum, const matrix<T2> &m)
 {
     return m + cnum;
 }
 
-template <typename T>
-inline matrix<T> operator-(const matrix<T> &m1, const matrix<T> &m2)
+template <typename T1, typename T2>
+inline matrix<T1> operator-(const matrix<T1> &m1, const matrix<T2> &m2)
 {
     assert(m1.nc() == m2.nc() && m1.nr() == m2.nr());
-    matrix<T> mnew = m1;
+    matrix<T1> mnew = m1;
     mnew -= m2;
     return mnew;
 }
 
-template <typename T>
-inline matrix<T> operator-(const matrix<T> &m, const std::vector<T> &v)
+template <typename T1, typename T2>
+inline matrix<T1> operator-(const matrix<T1> &m, const std::vector<T2> &v)
 {
     assert(m.nc() == v.size());
-    matrix<T> mnew = m;
+    matrix<T1> mnew = m;
     mnew -= v;
     return mnew;
 }
 
-template <typename T>
-inline matrix<T> operator-(const matrix<T> &m, const T &cnum)
+template <typename T1, typename T2>
+inline matrix<T1> operator-(const matrix<T1> &m, const T2 &cnum)
 {
-    matrix<T> mnew = m;
+    matrix<T1> mnew = m;
     mnew -= cnum;
     return mnew;
 }
 
 
-template <typename T>
-inline matrix<T> operator-(const T &cnum, const matrix<T> &m)
+template <typename T1, typename T2>
+inline matrix<T2> operator-(const T1 &cnum, const matrix<T2> &m)
 {
     return - m + cnum;
 }
@@ -608,20 +608,20 @@ inline vec<T> operator*(const vec<T> &v, const matrix<T> &m)
     if (m.is_row_major())
         linalg::gemv('T', m.nr(), m.nc(), 1.0, m.c, m.nc(), v.c, 1, 0.0, mv.c, 1);
     else
-        linalg::gemv('T', m.nr(), m.nc(), 1.0, m.c, m.nr(), v.c, 1, 0.0, mv.c, 1);
+        linalg::gemv_f('T', m.nr(), m.nc(), 1.0, m.c, m.nr(), v.c, 1, 0.0, mv.c, 1);
     return mv;
 }
 
-template <typename T>
-inline matrix<T> operator*(const matrix<T> &m, const T &cnum)
+template <typename T1, typename T2>
+inline matrix<T1> operator*(const matrix<T1> &m, const T2 &cnum)
 {
-    matrix<T> sum = m;
+    matrix<T1> sum = m;
     sum *= cnum;
     return sum;
 }
 
-template <typename T>
-inline matrix<T> operator*(const T &cnum, const matrix<T> &m)
+template <typename T1, typename T2>
+inline matrix<T2> operator*(const T1 &cnum, const matrix<T2> &m)
 {
     return m * cnum;
 }
@@ -724,9 +724,9 @@ std::ostream & operator<<(std::ostream & os, const matrix<T> &m)
 }
 
 template <typename T>
-matrix<std::complex<T>> to_complex(const matrix<T> &m)
+matrix<typename to_cplx<T>::type> to_complex(const matrix<T> &m)
 {
-    matrix<std::complex<T>> cm(m.nr(), m.nc());
+    matrix<typename to_cplx<T>::type> cm(m.nr(), m.nc());
     for (int i = 0; i < m.size(); i++)
         cm.c[i] = m.c[i];
     return cm;
@@ -812,7 +812,7 @@ T maxabs(const matrix<T> &cmat)
 template <typename T>
 std::string str(const matrix<T> &m)
 {
-    std::string s;
+    std::string s = "";
     for (int i = 0; i < m.nr(); i++)
     {
         if (m.nc() > 0) s = s + std::to_string(m(i, 0));
@@ -826,7 +826,7 @@ std::string str(const matrix<T> &m)
 template <typename T>
 std::string str(const matrix<std::complex<T>> &m)
 {
-    std::string s;
+    std::string s = "";
     for (int i = 0; i != m.nr(); i++)
     {
         if (m.nc() > 0)

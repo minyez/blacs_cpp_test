@@ -51,3 +51,7 @@ template <typename T>
 inline T get_imag(const T& v) { return T(0); }
 template <typename T>
 inline T get_imag(const std::complex<T>& v) { return v.imag(); }
+template <typename T>
+inline T get_conj(const T& v) { return v; }
+template <typename T>
+inline std::complex<T> get_conj(const std::complex<T>& v) { return std::conj(v); }

@@ -38,6 +38,10 @@ int main (int argc, char *argv[])
 
     // declare the global matrices
     matrix<double> mat1(1, 1, MAJOR::COL), mat2(1, 1, MAJOR::COL), prod(1, 1, MAJOR::COL);
+    matrix<double> mat1_copy(1, 1, MAJOR::COL);
+    matrix<complex<double>> mat1cplx(1, 1, MAJOR::COL), mat2cplx(1, 1, MAJOR::COL);
+    copy(mat1, mat1_copy);
+    mat2cplx = mat2cplx + mat1_copy;
     matrix<double> prod_lapack(1, 1, MAJOR::COL);
     // auto hemat = random_he(5, complex<double>{0, 0}, complex<double>{1, 0});
     // auto hemat_inv = inverse(hemat);
