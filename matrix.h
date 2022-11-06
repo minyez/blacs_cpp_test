@@ -33,6 +33,13 @@ private:
     int size_;
     int nr_;
     int nc_;
+
+    // major dependent matrix index
+    T &at_by_rm(const int ir, const int ic) { return c[flatid_rm(nr_, ir, nc_, ic)]; }
+    const T &at_by_rm(const int ir, const int ic) const { return c[flatid_rm(nr_, ir, nc_, ic)]; }
+    T &at_by_cm(const int ir, const int ic) { return c[flatid_cm(nr_, ir, nc_, ic)]; }
+    const T &at_by_cm(const int ir, const int ic) const { return c[flatid_cm(nr_, ir, nc_, ic)]; }
+
 public:
     using type = T;
     using real_t = typename to_real<T>::type;
@@ -137,8 +144,8 @@ public:
         else
         {
             vec<T> v(nc_);
-            for (int ir = 0; ir < nc_; ir++)
-                v[ir] = this->at_by_cm(ir, ic);
+            for (int ir = 0; ir < nr_; ir++)
+                v[ir] = this->at_by_rm(ir, ic);
         }
     }
 
@@ -190,11 +197,6 @@ public:
     const T &operator()(const int ir, const int ic) const { return this->at(ir, ic); }
     T &at(const int ir, const int ic) { return c[flatid(nr_, ir, nc_, ic, is_row_major())]; }
     const T &at(const int ir, const int ic) const { return c[flatid(nr_, ir, nc_, ic, is_row_major())]; }
-    // major dependent matrix index
-    T &at_by_rm(const int ir, const int ic) { return c[flatid_rm(nr_, ir, nc_, ic)]; }
-    const T &at_by_rm(const int ir, const int ic) const { return c[flatid_rm(nr_, ir, nc_, ic)]; }
-    T &at_by_cm(const int ir, const int ic) { return c[flatid_cm(nr_, ir, nc_, ic)]; }
-    const T &at_by_cm(const int ir, const int ic) const { return c[flatid_cm(nr_, ir, nc_, ic)]; }
 
     matrix<T> & operator=(const matrix<T> &m)
     {
@@ -439,7 +441,7 @@ public:
     {
         matrix<real_t> m(nr_, nc_, major_);
         for (int i = 0; i < size_; i++)
-            m.c[i] = get_real(c[i]);
+            m.c[i] = ::get_real(c[i]);
         return m;
     }
 
@@ -447,7 +449,7 @@ public:
     {
         matrix<real_t> m(nr_, nc_, major_);
         for (int i = 0; i < size_; i++)
-            m.c[i] = get_imag(c[i]);
+            m.c[i] = ::get_imag(c[i]);
         return m;
     }
 };
